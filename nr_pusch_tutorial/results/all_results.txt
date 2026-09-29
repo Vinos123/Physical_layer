@@ -1,0 +1,27 @@
+[ex1]
+SCS_kHz=30 slot_ms=0.5 slots_per_frame=20 allocated_width_MHz=7.2
+RIV=998 SLIV=53 grant_slot=4 K2=2 pusch_slot=6 (same SCS)
+[ex2]
+main: NRE_TBS=2640 NRE_actual=2640 Ninfo=5053.125 TBS=4992 G=10560
+TB_CRC=24 B=5016 BG=1 C=1 CB_CRC=0 Kprime=5016 Kb=22 Zc=240 K=5280 filler=264 N=15840
+small: NRE_TBS=528 NRE_actual=528 Ninfo=123.75 TBS=120 G=1056
+RE_cap: NRE_TBS=3120 NRE_actual=3240 Ninfo=5971.875 TBS=5888 G=12960
+ideal_TB_Mbps=9.984
+[ex3]
+data_RE=2640 DMRS_RE=240 QPSK_bits=5280 bit_errors=0 (mapping only, no UL-SCH codec)
+[ex4]
+CP_OFDM: roundtrip_error=7.067160396e-15 mean_PAPR_dB=7.569519564 p99_nearest_rank_dB=9.536150892
+DFT_s_OFDM: roundtrip_error=6.319578261e-14 mean_PAPR_dB=5.411800776 p99_nearest_rank_dB=7.004605052
+[ex5]
+EsN0_dB=0 BER=0.211605 EVM_pct=124.5995061 channel_error=0.06768962407
+EsN0_dB=5 BER=0.075925 EVM_pct=70.8013735 channel_error=0.02842195083
+EsN0_dB=10 BER=0.005425 EVM_pct=39.45048536 channel_error=0.01360448839
+EsN0_dB=20 BER=0 EVM_pct=12.6024574 channel_error=0.01265845704
+[ex6]
+first_BER=0.07913 combined_BER=0.02263 (same-symbol repetition; double total energy; no LDPC/RV/CRC)
+[ex7]
+PRBs=20 requested_dBm=16.02059991 actual_dBm=16.02059991 relative_PSD_dB=5.773159728e-15
+PRBs=40 requested_dBm=19.03089987 actual_dBm=19.03089987 relative_PSD_dB=5.773159728e-15
+PRBs=80 requested_dBm=22.04119983 actual_dBm=22.04119983 relative_PSD_dB=8.881784197e-16
+PRBs=160 requested_dBm=25.05149978 actual_dBm=23 relative_PSD_dB=-2.051499783
+illustrative_RSRQ_dB=-13.01029996 mean_power_dBm=-82.96708622 mean_of_dBm=-90 (different quantity)

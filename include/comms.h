@@ -1,0 +1,8 @@
+//
+// Created by VINO on 2026/9/26.
+//
+
+#ifndef INC_4G_5G_PHYSICAL_LAYER_COMMS_H
+#define INC_4G_5G_PHYSICAL_LAYER_COMMS_H
+
+#endif //INC_4G_5G_PHYSICAL_LAYER_COMMS_H

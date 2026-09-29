@@ -1,0 +1,8 @@
+PASS TBS branches, half ties, RE accounting
+PASS CRC/BG/segmentation/lifting sizes
+PASS exhaustive mathematical interval encoding
+PASS Gold against independent register implementation
+PASS QPSK known constellation and DMRS energy
+PASS independent DFT/FFT and energy checks
+PASS power clipping and invalid inputs
+All 7 check groups passed.
