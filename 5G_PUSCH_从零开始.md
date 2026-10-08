@@ -68,7 +68,7 @@
 
 **先认识单位。** Hz 是赫兹，表示每秒的周期数；kHz 是千赫兹，MHz 是兆赫兹。1 kHz=1000 Hz，1 MHz=1000 kHz。ms 是毫秒，1 ms=0.001 秒。Mbit/s 表示每秒一百万比特；bit/s 与 byte/s 相差 8 倍，不能混读。频率宽度、发送时间和数据速率是三类不同的量。
 
-![手机上传数据经过的路径](/Users/Admin1/Desktop/5G_PUSCH/assets/network.png)
+![手机上传数据经过的路径](assets/network.png)
 
 图 1 是教学简图。真实网络中还有其他功能节点；PUSCH 只描述空口上的一种物理信道，不代表照片从手机到服务器的整条端到端路径。
 
@@ -155,7 +155,7 @@ PUSCH 不只承载应用程序产生的用户数据。经 UL-SCH 传递的连接
 | [38.214](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf) | Physical layer procedures for data | 本次数据用哪些发送参数？ | 发送方案、时频分配、MCS、TBS、SRS/DM-RS/PT-RS 发送过程 |
 | [38.215](https://www.etsi.org/deliver/etsi_ts/138200_138299/138215/18.05.00_60/ts_138215v180500p.pdf) | Physical layer measurements | 怎样定义测到的强度、质量和时序？ | UE 与 NG-RAN 的测量对象、资源范围和量的定义 |
 
-![五份规范在一次 PUSCH 发送中的分工](/Users/Admin1/Desktop/5G_PUSCH/assets/standards.png)
+![五份规范在一次 PUSCH 发送中的分工](assets/standards.png)
 
 **规范分工图。** 38.211、38.212 描述发送信号与比特处理；38.213、38.214 给出相应控制和数据过程；38.215 定义测量量。38.215 不在“编码 → 调制”的串行链上，测量结果则可被后续控制和调度使用。
 
@@ -182,7 +182,7 @@ PUSCH 不只承载应用程序产生的用户数据。经 UL-SCH 传递的连接
 
 **RB** 是 Resource Block，资源块。NR 中，一个 RB 在频率方向包含 12 个连续子载波。**PRB** 是 Physical Resource Block，物理资源块。谈“分配 10 个 PRB”时，还需要说明时间上占几个 OFDM 符号，才能知道资源总量。
 
-![一个 PRB 在一个时隙中的资源格](/Users/Admin1/Desktop/5G_PUSCH/assets/grid.png)
+![一个 PRB 在一个时隙中的资源格](assets/grid.png)
 
 图 2 展示第 12 章算例中一个 PRB 的资源格：时隙有 14 个 OFDM 符号，PUSCH 使用符号 0 至 11；符号 2 上每隔一个子载波放置 DM-RS，共 6 个 RE。最后两个符号不属于这次 PUSCH 分配。图中每格只表示资源用途，不表示比特值，也未画出天线端口维度。
 
@@ -318,7 +318,7 @@ RIV = N_BWP × (L_RB − 1) + RB_start
 
 ### 5.1 先看全流程
 
-![PUSCH 的发送与接收主线](/Users/Admin1/Desktop/5G_PUSCH/assets/chain.png)
+![PUSCH 的发送与接收主线](assets/chain.png)
 
 图 3 按概念分组。前六个比特处理步骤在下面展开，其他步骤在后续章节展开。参考信号有自己的生成与映射过程，加入资源格时与数据信号配合，并非简单地都放进 TB 进行 LDPC 编码。
 
@@ -473,7 +473,7 @@ NR 数据加扰序列的初始化与 RNTI、相关标识等有关。**RNTI** 是
 
 **星座图**就是这些可能数值在平面上的位置。每个点对应一组比特。接收信号受噪声影响，落点会偏离原位置；接收机根据落点及噪声信息判断各比特的可信程度。
 
-![QPSK 与 16QAM 星座的教学示意](/Users/Admin1/Desktop/5G_PUSCH/assets/constellation.png)
+![QPSK 与 16QAM 星座的教学示意](assets/constellation.png)
 
 图 4 未标注实际标准的比特标签，两个星座已按相同平均能量归一化。每个 QPSK 点代表 2 个比特，16QAM 的每个点代表 4 个比特。二者在相同平均发射能量下，更多星座点通常意味着点间更密，更容易受到噪声影响。实际比特标签、旋转和归一化公式见 38.211 第 5.1 章。
 
@@ -671,7 +671,7 @@ PL 的常规关系为 `referenceSignalPower − 高层滤波后的 RSRP`。例�
 
 **HARQ** 是 Hybrid Automatic Repeat reQuest，混合自动重传请求。编码帮助接收机纠错；仍然解码失败时，后续重传可以提供更多证据。
 
-![上行 HARQ 与下行接收反馈的区别](/Users/Admin1/Desktop/5G_PUSCH/assets/harq.png)
+![上行 HARQ 与下行接收反馈的区别](assets/harq.png)
 
 图 5 左侧是简化上行动态调度 HARQ：gNB 收到 TB 后 CRC 失败，随后安排同一 HARQ 进程的重传；UE 发送同一个 TB 的相应冗余版本；gNB 与之前保存的软信息合并。右侧表示另一件事：UE 接收下行 PDSCH 后，向 gNB 发送 HARQ-ACK。这两条方向关系需要分清。
 
@@ -898,7 +898,7 @@ UE 根据 SRS 配置发送上行探测信号，gNB 可在相应资源和测量�
 
 ### 13.5 把五份规范连成一个工作循环
 
-![测量与 PUSCH 发送的工作关系](/Users/Admin1/Desktop/5G_PUSCH/assets/measurements.png)
+![测量与 PUSCH 发送的工作关系](assets/measurements.png)
 
 **测量关系图。** 两个接收方向应分开理解：UE 的下行参考信号测量可参与路径损耗估计；gNB 的上行探测及接收结果可供网络调度参考。图中箭头表示功能联系，不意味着规范强制采用某一种 MCS 选择算法。
 
@@ -1841,7 +1841,7 @@ EVM_rms ≈ √(1/(Es/N0))
 
 本机 QPSK 在 0 dB 得到 BER≈0.15884，10 dB≈0.0006884，12 dB≈0.00004710；14 dB 及以上这次未观察到错误。这些值随有限样本波动，应与理论趋势及统计区间比较。
 
-![未编码调制的 BER 与 EVM 实验](/Users/Admin1/Desktop/5G_PUSCH/assets/developer_ber.png)
+![未编码调制的 BER 与 EVM 实验](assets/developer_ber.png)
 
 图中零错误点用上界标记，不画成“准确等于0”的对数坐标。对于近似独立 Bernoulli 位错误、N 次试验零错误，95% 单侧上界约为 3/N；QPSK 的276000位约为1.09×10^-5。衰落或编码会使位错误相关；计算 BLER 区间时应以独立 TB/信道实现为试验单位，而不能把所有位当独立样本。
 
