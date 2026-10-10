@@ -64,7 +64,7 @@ figure{margin:28px 0 20px}figure img{margin:0}.diagram-button{display:block;bord
 <header class="top"><div class="brand"><span>5G</span><span>PUSCH 从入门到开发</span></div><div class="top-right"><span>38.211–38.215 · C++17 实验 · 离线可读</span><button class="menu" id="menu" type="button" aria-label="打开章节目录" aria-expanded="false" aria-controls="sidebar">目录</button></div></header>
 <div class="progress" id="progress" aria-hidden="true"></div><div class="shade" id="shade"></div>
 <aside class="sidebar" id="sidebar"><p class="side-label">学习目录</p><label class="visually-hidden" for="search" style="font-size:12px;color:var(--muted)">查找相关章节</label><input class="search" id="search" type="search" placeholder="输入术语 如 CRC 或 DM-RS" autocomplete="off"><p class="search-status" id="search-status">${summary}</p><nav class="toc" aria-label="章节目录">${nav}</nav><div class="side-footer">按 Ctrl / ⌘ + F 查找正文<br>图表与计算可离线查看<br>外部资料链接需要联网</div></aside>
-<main><article><div class="intro">${intro}</div>${chapters.map(c => `<section class="chapter" id="ch${c.n}" aria-labelledby="heading-${c.n}">${c.content}${c.n===12?lab:''}</section>`).join('\n')}</article><footer><span>5G PUSCH 从零开始 · 2026 年 10 月 8 日</span><a href="#top">回到开头 ↑</a></footer></main><a href="#top" class="back-top" aria-label="回到文档开头">↑ 顶部</a>
+<main><article><div class="intro">${intro}</div>${chapters.map(c => `<section class="chapter" id="ch${c.n}" aria-labelledby="heading-${c.n}">${c.content}${c.n===12?lab:''}</section>`).join('\n')}</article><footer><span>5G PUSCH 从零开始 · 开发路线更新于 2026 年 10 月 10 日</span><a href="#top">回到开头 ↑</a></footer></main><a href="#top" class="back-top" aria-label="回到文档开头">↑ 顶部</a>
 <dialog id="diagram-dialog" aria-labelledby="diagram-title"><div class="dialog-head"><strong id="diagram-title">查看图示</strong><button id="diagram-close" type="button">关闭 ×</button></div><p class="dialog-help">窄屏可在图像区域内横向滚动</p><div class="zoom-stage"><img id="zoom-image" alt=""></div></dialog>
 <script>
 const smallTBS = [24,32,40,48,56,64,72,80,88,96,104,112,120,128,136,144,152,160,168,176,184,192,208,224,240,256,272,288,304,320,336,352,368,384,408,432,456,480,504,528,552,576,608,640,672,704,736,768,808,848,888,928,984,1032,1064,1128,1160,1192,1224,1256,1288,1320,1352,1416,1480,1544,1608,1672,1736,1800,1864,1928,2024,2088,2152,2216,2280,2408,2472,2536,2600,2664,2728,2792,2856,2976,3104,3240,3368,3496,3624,3752,3824];
@@ -132,9 +132,9 @@ function updateScroll(){
 addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(updateScroll);ticking=true}},{passive:true});
 addEventListener('resize',updateScroll);addEventListener('load',updateScroll);
 </script></body></html>`;
-html = html.replace(/src="(\/Users\/Admin1\/Desktop\/5G_PUSCH\/assets\/[^"\s]+\.png)"/g,
+html = html.replace(/src="((?:\/Users\/Admin1\/Desktop\/5G_PUSCH\/)?assets\/[^"\s]+\.png)"/g,
   (_, p) => {
-    const png = fs.readFileSync(p);
+    const png = fs.readFileSync(path.isAbsolute(p) ? p : path.join(root, p));
     return `src="data:image/png;base64,${png.toString('base64')}" width="${png.readUInt32BE(16)}" height="${png.readUInt32BE(20)}" loading="lazy" decoding="async"`;
   });
 const output = path.join(root, '5G_PUSCH_从零开始.html');

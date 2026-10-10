@@ -1,6 +1,6 @@
 # PUSCH C++17 学习实验
 
-这是教程第 19–31 章的配套工程。先用清楚、可调试的标量实现学习规范，再讨论实时架构与优化。它包含真实可运行的算法，但**不是完整、可接入空口的 NR PUSCH 收发机**。
+这是教程第 19–31 章使用的参考工程。逐章 TODO 练习入口见 [learning_path/README.md](../learning_path/README.md)。先用清楚、可调试的标量实现学习规范，再讨论实时架构与优化。它包含真实可运行的算法，但**不是完整、可接入空口的 NR PUSCH 收发机**。
 
 ## 构建与运行
 
@@ -47,7 +47,7 @@ ctest --test-dir cpp/build-asan --output-on-failure
 | `FFT/OFDM/LS` | 基 2 单位化 FFT、BWP 居中映射、固定 CP、全导频平均的平坦信道 LS | 算法教学；固定 72 样点 CP 不等于 38.211 §5.3 的完整 NR 波形定时；未实现相位补偿/Point A 到 RF 中心频率转换 |
 | `power/linear_mean` | 简化单次功率上限计算；线性功率平均 | 38.213 §7.1 与 38.215 测量解释。无 TPC 状态机或完整测量滤波 |
 | `channel.cpp` | 静态整数延迟 SISO FIR、CFO、AWGN、RMS 时延 | 信号处理教学；不是 38.901 TDL/CDL 或数字孪生 |
-| `bench.cpp` | SoA 复乘标量、x86 AVX512F 分派分支、SVE 条件编译分支、尾部处理、参考值对比 | ISA 参考见教程第 28 章。本机只执行了 portable 分支；无 AMX 内核 |
+| `bench.cpp` | SoA 复乘标量、x86 AVX512F 分派分支、SVE 条件编译分支、尾部处理、参考值对比 | ISA 参考见教程第 30 章。本机只执行了 portable 分支；无 AMX 内核 |
 
 `Config` 的检查仅覆盖实验的数据形状与范围，**不替代完整 NR 合法配置验证**。默认配置是教程第 12 章的受限场景；修改配置时需另查 Mapping Type、DM-RS 位置表及 DCI/RRC 的合法组合。
 

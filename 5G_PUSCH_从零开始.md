@@ -1,7 +1,7 @@
 # 5G PUSCH 从零开始的学习文档
 
 面向没有 4G LTE 和 5G NR 基础、准备从事物理层软件开发的读者  
-整理日期：2026 年 10 月 8 日
+整理日期：2026 年 10 月 8 日；开发路线重写：2026 年 10 月 10 日
 
 **PUSCH 是手机向 5G 基站发送数据时使用的一种物理信道。** 学习它，就是理解手机怎样得到发送机会，怎样把一包二进制数据变成无线信号，以及基站怎样把信号还原成数据。
 
@@ -17,9 +17,9 @@
 
 第一遍读第 1 至 4 章，回答“谁发送、发什么、在哪儿发、谁决定”，并认识五份规范的分工。第二遍读第 5 至 11 章，把一包数据沿发送和接收流程走一遍。第三遍完成第 12 章算例，学习第 13 章测量，做第 16 章练习，再用第 14、15、17、18 章查参数、误区、术语与标准条款。
 
-第 19–31 章是面向岗位的开发进阶部分：从 C++ 数据表示和 DSP 数学开始，逐步实现资源、编码前后处理、调制、参考信号与 OFDM；接着进入接收算法、CPU/Linux 性能、信道建模、数字孪生和 AI 工程。可以在读完相应入门章节后穿插实验，不必等读完全文才编程。
+第 19–31 章按“规范条款→固定版本 srsRAN 源码→自己实现→独立验证”组织，核心是 38.211、38.212 和 PUSCH。提供 10 个可编译的 TODO 练习，随后逐步完成真实 LDPC、速率匹配、HARQ 和完整编码链路；性能、信道与 AI 作为完成主线后的扩展。
 
-**配套代码。** [C++17 实验说明](/Users/Admin1/Desktop/5G_PUSCH/cpp/README.md)和[实验源码压缩包](/Users/Admin1/Desktop/5G_PUSCH/PUSCH_Cpp_Labs.zip)。核心工程不依赖第三方通信库。已经实现的链路从调制级比特开始，完整 LDPC 编译码留有对接契约与验收步骤；实验范围见第 19、27 章。信道部分补充使用 TR 38.901，不把信道模型规则归入 38.211–38.215。
+**配套代码。** 从[逐章练习说明](learning_path/README.md)开始；[原有 C++17 参考实验](cpp/README.md)用于对照。可下载[全部实验源码包](PUSCH_Cpp_Labs.zip)。10 个小练习有骨架、参考解和测试，完整 LDPC 编译码与编码 PUSCH 闭环仍需按第 25–27 章完成。参考 srsRAN 源码固定到具体提交，来源及范围见第 19 章。
 
 读完并完成实验后，应能解释 PUSCH 的主线、复算授权和编码长度、实现并调试核心子模块、设计接收链接口、理解性能测量和信道验证。完成教材实验是开发能力的起点；真实基站或终端还需要更广的配置覆盖、互操作验证和实时系统经验。
 
@@ -43,19 +43,19 @@
 - [16 自测题与参考答案](#ch16)
 - [17 术语速查与后续学习](#ch17)
 - [18 资料来源与规范定位](#ch18)
-- [19 从岗位要求反推学习与开发路线](#ch19)
-- [20 C++ 数据表示与 DSP 数学桥梁](#ch20)
-- [21 收发机架构、接口和状态管理](#ch21)
-- [22 授权、资源和 TBS 的代码实现](#ch22)
-- [23 CRC、LDPC 接口、速率匹配与 HARQ](#ch23)
-- [24 Gold、QAM 与软解调的代码实现](#ch24)
-- [25 DM-RS 和资源映射的索引工程](#ch25)
-- [26 OFDM、同步、信道估计与均衡](#ch26)
-- [27 可运行实验、误码曲线与验证方法](#ch27)
-- [28 SIMD、CPU 架构与 Linux 实时性能](#ch28)
-- [29 从多径信道到 3GPP 模型与数字孪生](#ch29)
-- [30 AI 训练推理与 AI Coding 工程实践](#ch30)
-- [31 项目验收、代码阅读与岗位准备](#ch31)
+- [19 开发主线：用规范、源码和实验搭起 PUSCH](#ch19)
+- [20 实验一：配置、资源格和长度账本](#ch20)
+- [21 实验二：把比特写成 Gold 序列和 QAM 符号](#ch21)
+- [22 实验三：生成 DM-RS 并把 PUSCH 放进资源格](#ch22)
+- [23 实验四：OFDM、信道与第一个接收机](#ch23)
+- [24 实验五：从 TB 到码块——CRC、分段和提升大小](#ch24)
+- [25 实验六：真正进入 NR LDPC 编码与译码](#ch25)
+- [26 实验七：速率匹配、软恢复和 HARQ](#ch26)
+- [27 实验八：把模块接成可验证的编码 PUSCH 链路](#ch27)
+- [28 扩展实验：UCI、变换预编码和多层 PUSCH](#ch28)
+- [29 源码工程课：跟踪真实 PUSCH 接收调用链](#ch29)
+- [30 性能实验：先保正确，再优化真正的热点](#ch30)
+- [31 完成岗位项目：规范追踪、信道验证与后续路线](#ch31)
 
 <a id="ch1"></a>
 ## 1 从一次上传认识无线通信
@@ -1236,995 +1236,864 @@ ETSI 的编号使用 138xxx，正文对应的 3GPP 编号是 38.xxx。下表的 
 这些是辅助学习资料，标准规则仍应回到对应版本的 3GPP 规范查证。参考实现文档也会更新，示例、字段及产品支持范围可能与旧版教程不同。
 
 <a id="ch19"></a>
-## 19 从岗位要求反推学习与开发路线
+## 19 开发主线：用规范、源码和实验搭起 PUSCH
 
-### 19.1 这个岗位要解决什么问题
+### 19.1 最终要做出什么
 
-岗位的主线是：**把通信规范和信号处理算法，做成可验证、可维护、能按时运行的软件。** 基站开发者处理许多 UE 同时上行的接收；终端开发者处理自己的上行发送及相关控制。二者都需要规范、数值算法、软件架构和性能分析，侧重点不同。
+前 18 章帮助你看懂一次上传；从本章开始，要亲手构建一个**可追踪中间结果的单层 PUSCH 收发实验台**。先在频域完成，再加入波形；先验证每个算子，再接入编码；最后才讨论真实基站的并发、时限和优化。你的主要成果是代码、测试向量、错误定位记录和可复现实验，而不只是阅读笔记。
 
-“数字孪生信道”要求模型不仅能产生随机多径，还要能在定义好的场景中代表真实环境，并用测量检验预测。AI 是可能使用的工具，需要与传统算法和实测基线比较。按照岗位描述的“一项或多项”，先选定主线，再扩展能力，比同时追逐所有关键词更容易形成可展示的成果。
+整个主线以 **TS 38.211、38.212 V18.5.0** 为核心。38.214 负责资源、MCS/TBS 等输入；38.213 补充功率与控制；38.215 帮助区分规范测量量和接收机内部诊断量。接收机的 LS、MMSE、min-sum、线程池等是实现选择，需要通过实验评估，不能声称是 3GPP 唯一指定的算法。
 
-| 岗位能力 | 本教程中的实践 | 可以提交的证据 |
+我们在自己的教学工程中写发送机和接收机；使用 **srsRAN Project 的 gNB 接收路径**理解真实接口和工程组织。共享 LDPC 编码器可用于构建教学发送端，但不能因此把 srsRAN Project 称为一套完整 NR UE。
+
+### 19.2 固定实际项目版本，再开始阅读
+
+本版源码阅读固定为：
+
+~~~text
+repository: https://github.com/srsran/srsRAN_Project
+tag:        release_25_10
+commit:     d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc
+规范基线:   TS 38.211–38.215 V18.5.0, Release 18
+核对日期:   2026-10-10
+~~~
+
+[项目首页](https://github.com/srsran/srsRAN_Project)已说明项目迁移至 [OCUDU](https://gitlab.com/ocudu/ocudu)，当前仓库已归档；默认分支可能只显示迁移说明。下面所有源码链接均指向上述固定提交。教程检查了 36 个文件的存在性与内容，保存了 [路径、URL 和 SHA-256 清单](learning_path/sources.json)。固定版本是为了复现阅读环境，不表示其实现覆盖了 Release 18 的全部功能。
+
+在项目根目录执行以下命令，将源码放到独立的 `references` 目录；首次执行需要联网。若已有同名仓库，直接进入它核对版本，不要覆盖自己的修改。
+
+~~~bash
+mkdir -p references
+git clone --branch release_25_10 --depth 1 https://github.com/srsran/srsRAN_Project.git references/srsRAN_Project
+git -C references/srsRAN_Project rev-parse HEAD
+~~~
+
+最后一条应打印上面的完整 commit。源码许可证见 [LICENSE](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/LICENSE)。本教程自写练习与源码索引不包含 srsRAN 源码副本；若把第三方代码复制或链接进自己的分发项目，要记录其来源和许可。
+
+### 19.3 六个里程碑，每一步都能留下证据
+
+| 阶段 | 章节 | 本阶段亲手完成 | 完成标志 |
+| --- | --- | --- | --- |
+| M0 工具与契约 | 19–20 | 配置、资源格、数据类型、单模块测试 | 长度账本和 RE 坐标可复算 |
+| M1 无编码物理处理 | 21–23 | Gold、QAM、DM-RS、映射、OFDM、LS | 无噪声随机比特回环通过 |
+| M2 编码主线 | 24–26 | CRC、分段、LDPC 图/编译码、速率匹配、软合并 | 合法码字校验、独立向量与恢复检查通过 |
+| M3 编码 PUSCH 闭环 | 27 | TB→波形→TB、噪声实验、错误注入 | TB CRC、逐阶段差异和 BLER 记录完整 |
+| M4 配置扩展与架构 | 28–29 | UCI、变换预编码/多层选修，异步处理边界 | 配置支持矩阵与状态机测试 |
+| M5 岗位项目 | 30–31 | 一个热点优化或一个信道验证项目 | 正确性、性能及适用范围报告 |
+
+**进度以验收为准，不按天数强推。** 第 25 章完整 NR LDPC 编译码和第 28 章 UCI 是较大的工程任务，不能把它们当成抄几行公式即可完成的练习。
+
+### 19.4 从一个会失败的练习开始
+
+配套目录 [learning_path](learning_path/README.md)提供 10 个可编译的 TODO 练习、参考解和逐题测试。你主要编辑 [student.cpp](learning_path/exercises/student.cpp)，接口说明在 [labs.hpp](learning_path/exercises/labs.hpp)。所有以下命令默认在本文档所在目录执行。
+
+~~~bash
+cmake -S learning_path -B build-learning -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-learning --parallel
+./build-learning/nr_labs L01
+~~~
+
+初次应返回非零状态并显示 `FAIL L01: TODO L01: chapter 20`。这是尚未实现的提示。只实现 L01 后再次运行它，通过再向后推进。`ctest --test-dir build-learning -R '^L01$' --output-on-failure` 可单独验收；其余 TODO 不应妨碍本题。
+
+需要对照参考行为时，使用另一个构建目录：
+
+~~~bash
+cmake -S learning_path -B build-learning-answer -DNR_USE_SOLUTIONS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-learning-answer --parallel
+ctest --test-dir build-learning-answer --output-on-failure
+~~~
+
+参考解有些调用原有 `cpp` 工程的函数，有些直接给出小算法；测试包含手算结果和不同表示的对照实现。它们是学习检查，覆盖范围有限。不能用“10 题通过”代替完整 NR 一致性验证。
+
+### 19.5 先认清已实现与需要自己完成的边界
+
+| 内容 | 随教程提供的状态 | 你需要继续完成 |
 | --- | --- | --- |
-| UE/gNB PHY 软件与架构 | 第 21–27 章的模块接口、收发链和状态设计 | 模块契约、配置矩阵、回环结果、错误定位报告 |
-| C/C++、DSP | 第 20、22–26 章 | 可编译实现、边界处理、独立数值对照 |
-| CPU 与 AVX512/SVE | 第 28 章；配套 SoA 复乘内核 | 正确性差异、反汇编、指定硬件性能报告 |
-| Linux、实时优化 | 第 28 章 | 逐模块耗时、调度/缺页追踪、端到端尾延迟 |
-| 3GPP 信道、数字孪生 | 第 29 章 | 模型配置、统计检验、独立实测验证 |
-| AI 训练与推理 | 第 30 章 | 数据切分、基线比较、部署延迟与失败回退 |
-| AI Coding | 第 30、31 章 | 小任务变更、可追溯测试、评审记录 |
-| 英文交流 | 第 31 章 | 英文设计说明、问题复现与实验摘要 |
+| L01–L10 | TODO 骨架、参考解、测试均提供 | 自己实现并解释失败原因 |
+| `cpp` 教学链路 | 已有 CRC、分段、速率匹配、调制级收发实验 | 按章节重写模块，扩大配置与独立向量覆盖 |
+| NR LDPC | 已有长度规划和后端契约，无完整编码器/译码器 | 第 25 章：独立实现或接入真实后端并验证 |
+| 完整编码 TB 闭环 | 第 27 章给出集成步骤与验收 | 完成 LDPC 后组装，不把随机调制比特当 TB |
+| srsRAN 对照 | 固定版本源码已阅读，构建选项/测试名已核对 | 自己在满足依赖的环境构建、运行和导出向量 |
+| UCI、MIMO、标准 CP 等 | 分级扩展实验与检查清单 | 逐个增加能力，不默认为现有代码已支持 |
 
-### 19.2 四个逐步加深的阶段
-
-**阶段 A：能计算。** 读第 1–12 章，手算并运行 budget 实验。能解释 A、B、K、N、E、G 的不同；能追踪一处资源参数变化造成的后果。完成条件：不用猜测即可说明算例中 1416、1432、1440、7200、2760 分别是什么。
-
-**阶段 B：能实现和定位。** 读第 20–27 章，运行无噪声链路，随后加入噪声。观察每个模块的输入输出，把错误缩小到比特序、符号映射、资源索引、变换缩放或 LLR。完成条件：能用独立参考发现“收发两边都写错但回环通过”的问题。
-
-**阶段 C：能做完整编码链和接收算法。** 对接真实 LDPC 编译码，加入合法授权、频率选择性信道、HARQ 和更多配置。完成条件：从 MAC TB 到解码 TB 的回环、独立参考一致性，以及有统计解释的 BLER 曲线。
-
-**阶段 D：能工程化和验证模型。** 做 SIMD、流式缓冲和 Linux 时限测量；或选择信道模型/孪生/AI 方向深入。完成条件：给出可重现的结果和适用边界，而不是只展示一张曲线。
-
-不强行按周承诺进度。没有通信基础但已熟悉 C++ 的人，可以较快进入实验；缺少编程和线性代数基础时，应先在第 20 章补桥梁。
-
-### 19.3 已交付代码的边界
-
-工程位于 **cpp/**，入口说明是 [README](/Users/Admin1/Desktop/5G_PUSCH/cpp/README.md)。已实现资源/TBS、CRC、LDPC 参数规划与分段、速率匹配及回填、Gold/QPSK/16QAM、单端口 DM-RS、受限映射、FFT/教学 OFDM、平坦信道接收、FIR/CFO/AWGN 和复乘性能实验。
-
-**LDPC 校验位生成和译码尚未实现。** 因此 link 实验的输入是调制级随机比特，输出是这一层的 BER。coding 实验的速率匹配输入明确使用合成序列，只检查选位规则。二者尚不能拼成完整 TB 编码链，也不能产生 PUSCH BLER。
-
-初学阶段只用：单层、单码字、CP-OFDM，无 UCI/PTRS/跳频，普通 type-1 单符号 DM-RS、port 1000、nSCID=0、一 CDM group without data。预算函数能处理更多 Qm 和层数，调制/映射实验只覆盖 QPSK、16QAM 和单层。**函数接受的数值范围不代表所有组合都是合法 NR 配置。**
+---
 
 <a id="ch20"></a>
-## 20 C++ 数据表示与 DSP 数学桥梁
+## 20 实验一：配置、资源格和长度账本
 
-### 20.1 从比特到复数：类型为什么重要
+**依据：** [TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §4、§6.3.1.6；[TS 38.214 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf) §6.1.2、§6.1.4.1–§6.1.4.2 及引用的 §5.1.3.2。**目标：** 写出一个合法子集的 `Plan`，让发送和接收共用同一份配置结果。
 
-[头文件](/Users/Admin1/Desktop/5G_PUSCH/cpp/include/pusch_lab.hpp)使用下面的教学表示：
+### 20.1 用一个固定配置降低调试难度
+
+首个案例固定 normal CP、μ=1、BWP 50 PRB、从 BWP 内 PRB 5 开始分配 10 PRB；PUSCH 符号 0–11，mapping type A、DM-RS type A position=2、单符号 type-1 DM-RS、一个无数据 CDM group、端口 1000、单层、关闭变换预编码、无跳频/PT-RS/UCI。DM-RS 符号为 l=2，使用其偶数子载波，数据可使用其余 6 RE/PRB。首传选择 QPSK、R=526/1024。
+
+这里把资源与 DM-RS 掩码直接作为已经解析的配置。后续才从 RRC/DCI 表项计算它们。仅检查 `S+L<=14` 无法保证配置符合所有 NR 时域表和 DM-RS 条件。
+
+先约定三种坐标：`CRB` 相对 Point A；`PRB` 相对 BWP；`k_bwp` 是 BWP 内子载波编号。若 BWP 起点为 `crb_start`：
+
+~~~text
+crb = crb_start + prb
+k_bwp = 12 * prb + k_in_prb
+grid_offset = l * (12 * bwp_prbs) + k_bwp
+~~~
+
+不要把 CRB 编号直接用作 BWP 缓冲区下标。多接收通道扩展时，再增加 `rx` 轴并写清 stride。
+
+### 20.2 L01：先写坐标，暂时不要写 FFT
+
+实现 `learner::data_re()`，返回按符号优先、频率递增的所有数据位置。循环依次遍历 `l=0..11`、`prb=5..14`、`k=0..11`；当 `l==2 && k%2==0` 时跳过该 RE。
 
 ~~~cpp
-using Bit = std::uint8_t;       // 一个元素只允许 0 或 1
-using Bits = std::vector<Bit>;  // unpacked：1 byte 存 1 bit
-using IQ = std::complex<double>;
-using Grid = std::vector<IQ>;   // 索引为 l * (12 * bwp_prbs) + k
+// 循环体示意；由你补全循环和输出容器。
+const unsigned subcarrier = 12 * prb + k;
+const bool reserved = (l == 2) && ((k % 2) == 0);
+if (!reserved) {
+    out.push_back(l * 600 + subcarrier);
+}
 ~~~
 
-unpacked bits 浪费存储，但易观察。生产实现常用 packed bits；转换时必须定义每字节的 MSB/LSB 顺序、有效位数和尾部填充。不要直接换成 vector<bool> 后认为接口行为相同，它的代理对象和存储方式不同于普通数组。
+预期总数 1380，首位置 60，末位置 6779；1260 是 DM-RS，1261 是数据。运行 `./build-learning/nr_labs L01`。再给每个数据位置写入不同编号，提取后比较整个数组；只比较数量会漏掉顺序错误。
 
-复数 z=I+jQ 是两个实数。相乘得到：
+**故障注入：** 把 stride 600 写成已分配带宽 120。数量仍可能正确，但不同符号的数据会落到错误地址。用“首个不一致的 `(l,k)`”定位，不要只看最后 BER。
 
-~~~text
-(a + jb)(c + jd) = (ac - bd) + j(ad + bc)
-|z|² = I² + Q²
-conj(z) = I - jQ
+### 20.3 从 RE 数推导 G 和 TBS
+
+| 量 | 含义 | 本例 |
+| --- | --- | --- |
+| 实际数据 RE | 排除真实保留资源后的数量 | `(12×12−6)×10=1380` |
+| G | 本例无 UCI 时可传的编码比特数 | `1380×2×1=2760` |
+| TBS 计算用 RE | 按 38.214 限幅并考虑 xOverhead 的预算 | 1380 |
+| N_info | TBS 量化前的信息预算 | `2760×526/1024=1417.734375` |
+| A=TBS | 量化后的 TB 有效载荷 | 1416 bit，即 177 byte |
+
+实现时分别保存 `actual_data_re`、`tbs_re`、`G`、`A`。每 PRB 的 TBS 用 RE 数存在 156 的上限；xOverhead 是预算参数，不能未经映射规则就直接拿去清零若干资源格。14 符号且同样只扣 6 RE 时，实际每 PRB 162 RE，而 TBS 预算上限为 156。
+
+小 TBS 分支需要查离散表，不能把 `N_info` 四舍五入到字节就算结束。练习：先手算本例，再实现小分支；随后补大分支，在 3824 附近和 R=1/4 附近构造边界测试。对照本地 [resource.cpp](cpp/src/resource.cpp) 与 [tbs_calculator.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/ran/sch/tbs_calculator.cpp)，注意其参数表示、单位和返回值。
+
+### 20.4 RIV、SLIV 和 Plan 的责任
+
+RIV 把频域连续分配压成整数；SLIV 把起始符号和长度压成整数，但时域分配的具体表项还提供 mapping type、K2 等上下文。首个配置有 `RIV=455`、`SLIV=55`。先实现编码/解码，再枚举所有合法 `(start,length)` 做往返检查，另保留这两个独立手算值。
+
+推荐的教学类型如下；它表达单位和职责，尚不是需照搬的生产接口：
+
+~~~cpp
+struct BitCount { std::uint64_t value; };
+struct ByteCount { std::size_t value; };
+struct PuschPlan {
+    unsigned qm, layers, rv;
+    BitCount tb_bits, coded_bits;
+    std::vector<unsigned> data_re, dmrs_re;
+    // 下一阶段增加 BG、Zc、每个 CB 的 E_r 和 filler 范围。
+};
 ~~~
 
-I/Q 是离散基带表示；数字数组并不等于天线上的实数射频波形。后续 DAC、频率搬移、滤波、增益标定属于更完整的无线设备链路。
+控制路径负责查表、检查支持范围、生成 Plan；热路径消费 Plan。发送、接收、测试不要各自复制一套资源预算逻辑。实际项目的数据边界先看 [pusch_processor.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_processors/pusch/pusch_processor.h) 的 PDU；在 [pusch_processor_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_processor_impl.cpp) 中找到频域分配转 CRB mask 的位置，解释为什么估计器需要知道 BWP 起点。
 
-### 20.2 连续信号怎样进入离散算法
+**本章交付：** L01、资源预算日志、RIV/SLIV 往返检查、TBS 边界用例，以及列明“支持/拒绝”的配置表。
 
-采样率 Fs 表示每秒处理多少样点；第 n 个样点的时间为 n/Fs。N 点 OFDM 的子载波间隔是 Δf=Fs/N。实验取 N=1024、Δf=30 kHz，则 Fs=30.72 MHz；这不表示 50 PRB 的占用带宽等于 30.72 MHz。50 PRB 对应 600 个子载波，其他 FFT bin 可以为空。
-
-单位化 DFT 的教学定义：
-
-~~~text
-X[k] = (1/√N) Σ x[n] exp(-j2πkn/N)
-x[n] = (1/√N) Σ X[k] exp(+j2πkn/N)
-~~~
-
-FFT 是计算 DFT 的快速算法，不是另一种变换。配套代码在两个方向都乘 1/√N，因此总能量相同；不少库只在 IFFT 乘 1/N，也有库两个方向均不缩放。对接库时先查缩放，避免一个 N 倍误差进入增益、EVM 和噪声估计。
-
-**练习。** 用 4 个复数手算 DFT，和 FFT 对比；再做 FFT→IFFT。前一个检查变换定义，后一个检查逆变换，但仅后一个不能排除两个方向共享缩放错误。配套测试包含两种检查。
-
-### 20.3 功率、dB 和噪声约定
-
-功率比用 10log10(P2/P1)，同阻抗下的幅度比用 20log10(A2/A1)。dBm 是相对 1 mW 的功率，不能与无单位 dB 混加而不说明含义。两个功率读数先变成线性功率再平均；第 13 章的代码入口是 linear_mean_dbm。
-
-复白噪声 w=wI+jwQ，若 E|w|²=σ²，则两个独立分量各为方差 σ²/2 的零均值高斯随机变量。代码中正态分布的标准差应为 **sqrt(σ²/2)**，不能直接填 σ²，也不能让 I/Q 各取 σ²。
-
-等概率 QPSK/16QAM 星座平均能量 Es=1。若以接收端的数据 RE 为参考，SNR=|h|²Es/σ²。实验设置 σ²=|h|²×10^(-SNRdB/10)。对于 M-QAM，一个符号携带 Qm 位；无编码时 Es/N0=Qm×Eb/N0；如果 Eb 指信息位，还要说明编码率与开销，不能直接套同一个换算。
-
-### 20.4 写 C++ 时先建立五个习惯
-
-| 习惯 | PHY 中的具体原因 |
-| --- | --- |
-| 索引与长度分开 | PRB 起点、CRB 起点、数组 offset 和 RE 数量不是同一种量 |
-| 大乘积先转 64 位 | RE×Qm×层数×R_x1024 可能在中间计算溢出 |
-| 明确输入合法性 | 配置错误应在计划阶段被拒绝，避免越界后才发现 |
-| 声明所有权和生命周期 | FFT/译码任务异步运行时，临时数组不能先释放 |
-| 固定数值约定 | LLR 符号、IQ 缩放、位序、噪声单位必须跨模块一致 |
-
-当前工程用 vector 和 double 优先保证可读性。生产 C++17 可以采用指针+长度的只读/可写 view 或项目自定义 span；std::span 属于 C++20。不要为了零拷贝返回指向局部 vector 的指针。热路径使用预分配内存池，将校验、异常、扩容和日志移出逐样点循环。
-
-**开发任务。** 把 8 个 unpacked bits 转成一个 byte，再转换回来；分别测试最高位为 1、非整字节长度和空输入。提交时说明位序和尾部约定。
+---
 
 <a id="ch21"></a>
-## 21 收发机架构、接口和状态管理
+## 21 实验二：把比特写成 Gold 序列和 QAM 符号
 
-### 21.1 先分清“计划”和“执行”
+**依据：** [TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §5.1、§5.2.1、§6.3.1.1–§6.3.1.3。**目标：** 让每个比特的顺序、序列状态与星座标签都可验证。
 
-规范提供 RRC/DCI/过程条件，算法需要的是已经解析的资源计划。建议分两步：
+### 21.1 先决定 bit 怎么放进内存
 
-~~~text
-RRC + DCI + 时隙方向 + HARQ 状态
-    ↓ 解析、表选择、合法性检查
-不可变 PuschPlan
-    ├─ TB/BG/Zc/CRC/E_r
-    ├─ data/DM-RS/PT-RS RE 索引
-    ├─ 调制、层、端口、功率、时限
-    └─ 各阶段缓冲大小
-    ↓
-UE TX 或 gNB RX 的执行任务
-~~~
+练习使用 `uint8_t` 保存一个 0/1，便于观察；八个这样的元素才对应八个逻辑比特。srsRAN 的 `bit_buffer` 使用压紧表示，`span<uint8_t>` 有时表示 TB 字节、有时表示未压紧比特，必须沿接口读说明。177 字节 TB 与 1416 个 byte-sized bit 的内存长度不同。
 
-同一份计划应由 TX/RX 各自依授权重建；不会在实际空口把发射机内部的 source_positions 或信道真值传给接收机。教学项目暂用 Config 代替计划构造器，没有 RRC/DCI 解析器。
+所有跨模块接口写清：逻辑比特数、存储字节数、字节内部 MSB/LSB 顺序、是否包含 CRC/filler、缓冲区所有权。不要只写 `length`。
 
-**设计重点：** 表选择与合法性检查集中，内核只接收明确形状的数组；计划构建错误与无线解码失败分别报告。不能把“授权配置不支持”伪装成“CRC 失败”。
+### 21.2 L02：先用数组实现 Gold，再读优化源码
 
-### 21.2 每个模块的接口需要什么
-
-| 模块 | 输入 | 输出 | 必须约定 |
-| --- | --- | --- | --- |
-| TBS/编码规划 | 已解析资源、MCS、层数 | A/B/BG/C/Zc/K/N/E_r | 码率单位、初传/重传、开销来源 |
-| LDPC 编码 | K 个含 filler=0 的比特 | 编码位 | 前 2Zc 是否已经删除、位序、掩码 |
-| 速率匹配 | N 长母码、NULL、RV、E | E 位 | Ncb、k0、交织、是否已经扣 UCI |
-| QAM | Qm 对齐的比特 | G/Qm 复符号 | 标号、能量、码字/层顺序 |
-| OFDM | 端口资源格 | 时域 IQ | FFT bin、CP、缩放、载频相位 |
-| 均衡/解调 | y、H、噪声估计 | 每层符号/LLR | 后均衡增益、方差、LLR 正负和饱和 |
-| LDPC 译码 | 完整约定的软位 | 信息位和状态 | 擦除、filler、迭代上限、早停条件 |
-
-可以先画清 buffer graph：哪块内存由谁申请，哪个任务读取/写入，何时可以复用。只给函数名而不给长度、单位和生命周期，不足以成为可维护接口。
-
-### 21.3 UE 发射与 gNB 接收不是镜像复制
-
-UE 主链是 TB 编码、参考信号、映射、OFDM 和发送时限；gNB 主链是多天线采样接入、同步、信道估计、均衡、软解调、译码及反馈。gNB 要处理多个 UE、不同 PRB 和天线，FFT 可能被同一时隙的多用户共享，而译码任务可以按 UE/CB 并行。
-
-一种接收依赖图：
+Gold 生成器有两个 31 阶二进制递推序列，运算是模 2 加法，即 XOR：
 
 ~~~text
-IQ buffer -> timing/CFO -> shared FFT
-                           ├-> UE A DM-RS -> H/σ² -> equalize -> LLR -> CB jobs -> TB CRC
-                           └-> UE B DM-RS -> H/σ² -> equalize -> LLR -> CB jobs -> TB CRC
+x1(n+31) = x1(n+3) XOR x1(n)
+x2(n+31) = x2(n+3) XOR x2(n+2) XOR x2(n+1) XOR x2(n)
+c(n)     = x1(n+1600) XOR x2(n+1600)
+x1(0)=1，其余初始位为0；x2 的初始31位来自 c_init 的第0..30位。
 ~~~
 
-任务完成顺序不等于资源复用顺序。读取 FFT 格子的 UE 任务全部结束前，格子不能还给内存池。多线程共享日志计数器、环形队列指针或相邻 HARQ 元数据还可能产生缓存行争用。
+实现 `gold(init,count)`：分配能容纳 `1600+count+31` 项的数组；填初值；逐项递推；只输出跳过 1600 项后的部分。先用最直观的数组版本，不急于把 31 位状态压成整数。
 
-### 21.4 HARQ 是状态机，RV 是一次发送的参数
+测试 L02 使用另一种压紧移位寄存器表示进行对照，覆盖 0、1、42、最大 31 位初值与非整字长度。通过后，再读 [pseudo_random_generator_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/sequence_generators/pseudo_random_generator_impl.cpp)：找初始化、状态推进、生成或 XOR 的入口，观察它怎样复用状态。
 
-进程状态至少关联 UE 身份、HARQ process、NDI、新数据代次、TB 长度、编码配置、软缓存与过期时间。重传依据同一个 TB 的编码身份回填母码位置；新 TB 必须清理旧证据。不要仅用 RV=0 判断新传，也不要把相同 HARQ 进程号跨 UE 的缓存合并。
+**追加实验：** 一次产生 200 位，与先产生 73 位再续产生 127 位应相同。练习接口是无状态的一次性生成；若扩展成流式对象，不能在每个 OFDM 符号边界重新初始化数据加扰器。
 
-调度时记录绝对时隙/帧计数；DM-RS 的 n_slot 是无线帧内的时隙索引，两者不要混用。状态机还要处理超时、UE 删除、配置变更、缓存容量不足和进程复用。
+### 21.3 加扰保持长度，软解扰改变符号
 
-**规范边界：** 编码/速率匹配查 38.212；授权和时间关系查 38.214、38.213；MAC HARQ 行为查第 18 章的 38.321。这些状态设计是软件方案，不是某份规范规定的 C++ 类结构。
+无 UCI、单码字 q=0 的主线中，`c_init = RNTI × 2^15 + n_ID`，编码比特与 `c(i)` XOR。RNTI 与序列用的 ID 是两种不同参数。加扰前后长度均为 G，不负责纠错。
 
-### 21.5 日志要能定位第一处差异
+写一个独立 `scramble`，检查连续两次使用同一序列恢复原输入。该往返检查不能证明序列正确，因此仍需 L02 的序列对照。
 
-最小可复现日志包括：规范/软件版本、UE/RNTI、无线帧与时隙、授权原始值及解析结果、MCS 表、Qm/R、A/B/BG/C/Zc/K/N/E_r、DM-RS 配置、LLR 单位、噪声估计、RV/NDI、CRC 结果和耗时。
+接收机的 LLR 约定是 `log(P(bit=0)/P(bit=1))`，所以正数倾向 0。软解扰为 `L_out(i)=(1−2c(i))L_in(i)`；无须先硬判决。先硬判决会丢失 LDPC 所需的可靠度。
 
-调试时保存阶段快照：TB→CB→母码→选位→QAM→格子→FFT 输出→均衡符号→LLR→译码位。先找第一处不同，再追踪上游；最后的 CRC 失败只表示链路某处出错。生产日志需采样和限流，避免文本输出本身造成超时。
+### 21.4 L03：16QAM 的位序比星座外形更重要
+
+QPSK 每符号两位：`[(1−2b0)+j(1−2b1)]/sqrt(2)`。16QAM 的四位按下式分配到 I/Q：
+
+~~~text
+I = (1−2b0) × [2−(1−2b2)] / sqrt(10)
+Q = (1−2b1) × [2−(1−2b3)] / sqrt(10)
+~~~
+
+实现 `qam16(bits)`，要求恰好四位且每位为 0 或 1。`0000` 对应 `(1+j)/sqrt(10)`，`1010` 对应 `(-3+j)/sqrt(10)`。平均单位能量指**遍历所有等概率星座点**后的平均，不要求每个点模长都等于 1。
+
+运行 L03 后，给全部 16 个标签画图，并标注 `b0b1b2b3`。再读 [modulation_mapper_lut_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_modulation/modulation_mapper_lut_impl.cpp) 的查表方式，比较“标签如何组成表下标”和你自己的公式。不要只凭星座形状相同就通过验收。
+
+### 21.5 源码阅读练习：从公式版走向查表版
+
+在自己的版本中保留 `qam16_formula` 与 `qam16_table` 两个入口。构造全标签输入，逐点比较；再用随机比特流检查尾部和非法长度。查表生成过程与期待值最好使用不同表达方式，否则同一个位序错误可能被两边共享。
+
+**故障注入：** 交换 b1、b2。平均功率和星座点集合可能都正常，逐标签对照会立即失败。写出“为什么 EVM/BER 之外仍要保留位级向量”的解释。
+
+**本章交付：** L02、L03、流式序列续接测试、全标签星座表、packed/unpacked 转换测试。
+
+---
 
 <a id="ch22"></a>
-## 22 授权、资源和 TBS 的代码实现
+## 22 实验三：生成 DM-RS 并把 PUSCH 放进资源格
 
-**规范定位：** [38.214 §6.1.2、§6.1.4；§5.1.3.2](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf)。源码：[resource.cpp](/Users/Admin1/Desktop/5G_PUSCH/cpp/src/resource.cpp)。
+**依据：** [TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §6.4.1.1、§6.3.1.6–§6.3.1.7；[TS 38.214 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf) §6.2.2。**目标：** 同时验证导频的数值、位置和幅度。
 
-### 22.1 RIV/SLIV：压缩字段如何变成数组范围
+### 22.1 DM-RS 同时有序列与位置两种问题
 
-第 12 章的 RIV=455 解出 BWP 50 内的起点 5、长度 10。它是资源分配字段的数值，不是全 DCI 原始比特串；解析字段前仍需确定分配类型、字段宽度和 BWP。
+DM-RS 是接收端知道其发送值的参考信号。接收值与已知发送值的关系提供信道信息。生成正确的 Gold/QPSK 数值并不保证接收成功：符号编号、CRB 参考点、端口对应的频率位置和覆盖码也必须一致。
 
-源码的 RIV 编码分支：
+主线继续限制为 CP-OFDM、normal CP、type 1、端口 1000、nSCID=0、一个 DM-RS 符号、一个无数据 CDM group；该子集没有多端口解扩。其他组合应明确拒绝，直到补上相应规范表和测试。
 
-~~~cpp
-return l - 1 <= n / 2
-    ? n * (l - 1) + s
-    : n * (n - l + 1) + (n - 1 - s);
-~~~
+### 22.2 L04：用宽整数计算 c_init
 
-先验证 n≥1、s<n、1≤l≤n-s。使用 l≤n-s 可以避免先算 s+l 时的溢出。SLIV 对 14 符号格也有两种分支；数值 55 表示 S=0、L=12，但某个 S/L 能被编码，不等于它与当前 Mapping Type、DM-RS 或时隙方向兼容。
-
-教学解码器枚举所有合法 S/L 并寻找编码结果，便于成为快速解码器的参照。生产热路径应采用直接解码或预计算表；改进前保持枚举版作为测试 oracle，检查两分支交界和最长分配。
-
-### 22.2 实际映射 RE 与 TBS 用 RE 必须分开
-
-当前受限配置中：
+在该子集下，序列初始化为：
 
 ~~~text
-actual_per_PRB = 12L - 6
-actual_data_RE = actual_per_PRB × PRB
-TBS_RE = min(156, actual_per_PRB - xOverhead) × PRB
-G = actual_data_RE × Qm × layers   （本实验无 UCI 和其他占用）
+c_init = [2^17 × (14×n_slot + l + 1) × (2×N_ID + 1) + 2×N_ID] mod 2^31
 ~~~
 
-默认 L=12、xOverhead=0 时二者恰好都为 1380。若 L=14，实际数据 RE 为 1620，TBS 用 RE 为 1560；增加 xOverhead=18 后，TBS 用 RE 为 1440，格子中实际数据 RE 仍是 1620。**xOverhead 是 TBS 估算参数，不能直接当作某些 RE 的坐标去打洞。**
+`n_slot` 是当前 numerology 下无线帧内的时隙编号，不能直接使用持续增长的全局时隙号。l 为时隙内符号索引。先将乘法提升到 `uint64_t`，最后取低 31 位。练习接口为聚焦算式未传 μ；正式 Plan 还要检查 `n_slot < 10×2^μ`。
 
-扩展到真实配置时，应先独立建立所有占用掩码，再得到可映射数据 RE 和 UCI 分配容量。不能一直沿用“每 PRB 减 6”，也不能把包含 UCI 的总 G 全部交给 UL-SCH 速率匹配。
+实现 `dmrs_init` 并运行 L04：`(2,2,42)` 应为 `345374804`；`(0,0,0)` 为 `131072`。再用它生成 QPSK 参考符号。
 
-### 22.3 TBS 的整数实现与边界
+### 22.3 参考点决定需要跳过多少序列
 
-MCS 给出的 R/1024 可以保持为整数分子 R_x1024，先计算 64 位：
+普通 CP-OFDM 主线以相应参考点生成 DM-RS 序列。对本教程连续分配、type 1 场景，从 CRB 0 计起的首 PRB 为 `crb_start+start_prb`，需跳过 `6×(crb_start+start_prb)` 个复数参考符号，再取 `6×n_prbs` 个。注意是**复数符号数**；Gold 比特索引应再乘 2。
 
-~~~cpp
-const std::uint64_t numerator = re * mcs.qm * layers * mcs.r_x1024;
+阅读 [dmrs_pusch_estimator_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/signal_processors/pusch/dmrs_pusch_estimator_impl.cpp)，先找 `sequence_generation` 的 slot、symbol、ID，再沿生成辅助函数追 rb mask 与参考位置，最后看 `generate` 对不同层的处理。教学版只有一层，不应把其他端口简单复制为同一序列和位置。
+
+**独立检查：** 保持绝对 CRB 分配相同，改变 BWP 起点与 BWP 内起点的分解，参考符号应保持一致，资源格的局部地址则相应变化。这个测试能抓住“只用 BWP 内起点生成序列”的错误。
+
+### 22.4 给 mapper 写一个反向索引表
+
+准备三张表：`data_positions`、`dmrs_positions`、`reserved_positions`。先检查无越界、数据和 DM-RS 不相交、数量与 Plan 相符。所有未分配 RE 初始化为零，不能保留前一时隙内容。
+
+~~~text
+写入 data_positions[i] ← data_symbol[i]
+写入 dmrs_positions[j] ← beta_dmrs × dmrs_symbol[j]
+提取时使用相同的坐标顺序；对照测试另写按(l,k)扫描的参考提取器。
 ~~~
 
-实际 N_info=numerator/1024。小 TBS 分支用向下量化和离散表，大分支用最近量化后按条件处理。代码通过整数除法避免浮点误差将临界值送到相邻档位。理解代码时先对照第 12 章公式，不要把 TBS 简化成 round(G×R)。
+β 是幅度比例；功率比是 β²。主线 β=1。在源码中还要阅读 processor 对 `nof_cdm_groups_without_data` 与导频缩放的处理；不能只扩展掩码而继续假定所有配置的数据与 DM-RS 功率关系相同。
 
-有一个特别适合测试的例子：N_info=5000、R=128/1024。大分支量化值为 4992，低码率条件得到 C=2，最后 TBS=16×ceil(5016/16)-24=5000。**量化值并不总等于最后 TBS。** 这个 C 是 TBS 算法的中间量；仍应单独执行 38.212 的实际 CB 规划。
+### 22.5 先通过资源格级回环
 
-### 22.4 MCS 表选择与重传不能省略
+不加 OFDM 和噪声，执行随机比特→加扰→QAM→mapper→extract→硬解调→解扰。每一级导出前 16 项及总长度，比较发送与恢复比特。随后把 DM-RS 值乘已知复数 `h=0.8+0.3j`，为下章准备估计器输入。
 
-代码只包含表 5.1.3.1-1 的 0–28 初传参数。其余保留项/重传场景需依已有 TB 和规范条件处理，不能将无定义码率补成 0 或擅自复用前一行。真实计划构建器还要结合 DCI 格式、高层配置、变换预编码等条件选择表。
+**故障注入：** DM-RS 图样整体移动一个子载波、把 nSCID/ID 配错、把幅度 β 当成功率倍数直接相乘。分别记录资源位置检查、估计值和 EVM 如何变化。
 
-**练习与验收。** 把 n_prbs 改为 1、10、45，预期 TBS 为 136、1416、6400；再将 L 改为 14，检查两种 RE 计数。提交配置表、手算过程和运行输出。进一步实现快速 RIV 解码，并与枚举版遍历比较。
+**本章交付：** L04、DM-RS 向量、资源格占用图、CRB/BWP 变换测试，以及无噪声资源格回环。
 
-### 22.5 功率控制与测量怎样变成软件
-
-补充代码入口是 pusch_power_dbm 和 linear_mean_dbm，分别联系 [38.213 §7.1](https://www.etsi.org/deliver/etsi_ts/138200_138299/138213/18.05.00_60/ts_138213v180500p.pdf)与[38.215 §5](https://www.etsi.org/deliver/etsi_ts/138200_138299/138215/18.05.00_60/ts_138215v180500p.pdf)。运行 pusch_demo measure，可复现第10、13章的功率上限和单位例子。
-
-~~~cpp
-// 简化单次发送；PL/TPC等参数已经由外部过程确定
-return std::min(pmax, p0 + 10*std::log10(std::ldexp(double(prbs), int(mu)))
-                     + alpha*pl + delta_tf + f);
-~~~
-
-默认10 PRB需求23.0103 dBm，20 PRB需求26.0206 dBm；上限23 dBm时两次实际功率都被限制为23 dBm。数值函数不能替代完整功率状态机：P0/alpha/PL参考的选择、TPC状态更新、多个发送/功率共享及有效P_CMAX条件，应由对应配置与过程提供。代码中的 pmax 是已解析的该次上限，不代表所有UE都固定23 dBm。
-
-测量模块的接口要保留接收参考点、RE集合、带宽、时间、天线/波束、校准增益和有效样本数。数字 IQ 的 |z|² 是相对数值功率，转为绝对 dBm 需要采样链校准；不能给一个无单位数组直接贴 RSRP 标签。线性平均可以用最大 dBm 值作基准计算10^((v-peak)/10)，减少极小数下溢。
-
-UE 的下行参考功率用于适用的路径损耗过程；gNB 的 UL SRS-RSRP测量对象为规定SRS资源；DM-RS噪声估计、均衡后SINR与CRC统计另有算法和口径。**开发任务：** 在测量日志中加入上述元数据，拒绝混合不同参考点的样本，再复现-80/-100 dBm的线性平均-82.9671 dBm。
+---
 
 <a id="ch23"></a>
-## 23 CRC、LDPC 接口、速率匹配与 HARQ
+## 23 实验四：OFDM、信道与第一个接收机
 
-**规范定位：** [38.212 §5.1、§5.2.2、§5.3.2、§5.4.2、§6.2](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf)。源码：[coding.cpp](/Users/Admin1/Desktop/5G_PUSCH/cpp/src/coding.cpp)。
+**依据：** [TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §5.3–§5.4；PUSCH 映射仍查 §6.3.1。接收同步、LS 和均衡的具体算法是本教程选择。**目标：** 把频域实验接到时域，并理解噪声和尺度如何传递。
 
-### 23.1 CRC 是 GF(2) 多项式运算
+### 23.1 FFT 前，先写一个很慢但看得懂的 DFT
 
-GF(2) 中加法和减法都是 XOR，没有进位。把输入比特看作多项式，以生成多项式做除法，余数作为 CRC。代码使用初值 0、不反射、MSB-first 的位序；不能只因为某库函数名含 CRC16 就直接替代，它可能采用不同的初值、反射和 xorout。
+对 N=8，直接用定义计算 `X[k]=Σx[n]exp(−j2πkn/N)/sqrt(N)`；逆变换使用正号和同样的单位化系数。单位化约定能保持总能量，便于跟踪复噪声方差。生产 FFT 库的缩放可能不同，调用接口时必须显式换算。
 
-核心循环：
+测试顺序：单位冲激→常量→单频复指数→随机复数。DFT 与 FFT 的逐项误差、FFT/IFFT 回环误差都要记录。仅做自身回环可能让两个互相抵消的错误漏过检查。
 
-~~~cpp
-const auto feedback = ((reg >> (width - 1)) & 1U) ^ bit;
-reg = (reg << 1U) & mask;
-if (feedback) reg ^= polynomial;
-~~~
+### 23.2 资源格到 FFT bin，再到采样
 
-测试既检查附加 CRC 后余数为零，又与另一种长除法实现比较。CRC16 对 ASCII “123456789”的结果为 0x31C3；这是位序和多项式的独立已知检查。CRC24A 与 CRC24B 用在不同位置，不能因为长度同为 24 就混用。
+教学工程把 BWP 居中映射到 FFT 的正负频率 bin，`Nfft=1024`；若 μ=1，则子载波间隔 30 kHz、采样率 30.72 MHz。这个数字来自 `Fs=Nfft×Δf`，不能独立任意选。
 
-CRC 通过并不绝对保证无误，只是使未检出错误概率很低；实际误检概率与错误分布等有关。
+先用统一 CP=72 的教学模式验证数组操作：取 IFFT 尾部 72 个样点复制到前面，接收端去掉同样长度。**该模式没有完整 NR CP 时序和相位补偿，不能作为 NR 标准波形验收结果。**
 
-### 23.2 LDPC 规划输出什么
+下一步按 §5.3 为每个符号计算实际 CP 样点数，累计绝对样点时间；处理 §5.4 所需的相位约定。不要每个 slot 都凭经验在“第一个符号”额外加 CP，应该从规范的符号索引和时间单位转换得出。
 
-默认例子的输出是：
+对照 [ofdm_modulator_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/lower/modulation/ofdm_modulator_impl.cpp) 中 CP 长度计算、格点复制、DFT 缩放、phase compensation；再读 [ofdm_demodulator_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/lower/modulation/ofdm_demodulator_impl.cpp) 的窗口和逆过程。这解释了为什么 upper PHY 的 PUSCH processor 不接收原始 IQ。
 
-~~~text
-A=1416 -> TB CRC16 -> B=1432 -> BG2 -> C=1
-K'=1432, 选择 Kb=10
-Zc=144, iLS=4
-K=10Zc=1440, filler=8
-完整基图长度=52Zc=7488
-删除前2Zc后 N=50Zc=7200
-~~~
+### 23.3 L05：从 DM-RS 写平坦信道 LS
 
-选择 BG、码块数和提升大小的顺序不能调换。BG2 的 Kb 可为 6/8/9/10，用于选择 Zc；最终编码输入 K 仍是 10Zc。**Kb 不是始终等于 K/Zc。**
-
-iLS 是提升集合编号，它影响基图移位值的选择。LDPC 基图是稀疏连接结构；每个非空条目展开成 Zc×Zc 的循环移位单位矩阵。工程上应保存稀疏块位置和移位，不构造巨大的稠密 H。
-
-多个 CB 时，每个 CB 带 CRC24B，之后补 filler 到 K。当前 segment_tb 接受 B/C 为整数的兼容长度，filler 用 0 送入编码器，再以独立 NULL 掩码通知速率匹配跳过。
-
-### 23.3 接入真正 LDPC 编码器
-
-已经提供抽象接口 LdpcEncoderBackend，尚无实现。需要严格约定：
+无噪声模型为 `y=hx`。多个已知导频的平坦信道最小二乘估计：
 
 ~~~text
-输入：K 个 unpacked bits，其中 filler=0
-参数：BG、Zc、iLS
-输出：N=66Zc 或50Zc个比特，前2Zc已经删除
+h_hat = Σ conj(x_i)y_i / Σ|x_i|²
 ~~~
 
-如果外部库输出完整 68Zc/52Zc，则 adapter 删除一次前 2Zc；如果库已经删除，则直接传递。将 filler 的原始 CB 下标平移到删除后的 N 坐标，再设置 NULL。错误地删除两次或把 filler 后移一次，会产生很难从最终 CRC 看出的错位。
+实现 `flat_ls(x,y)` 并运行 L05。用 `{1,j,−1,−j}` 乘以 `0.8+0.3j` 构造输入，估计应还原该 h。拒绝空输入、不等长和总导频能量为零的输入。
 
-验收分两层：先检查完整码字满足 Hx=0，再对比独立工具的位级输出。只检查 Hx=0 还不够，因为错误的矩阵也可与错误编码器自洽。
+然后把 60 个 DM-RS 样点送入估计器，数据 RE 除以 `h_hat`。该方法假定整个分配上信道常数；频率选择性信道不能把所有导频一平均就结束。
 
-### 23.4 循环缓冲、RV 和交织
+### 23.4 噪声方差不是随手写一个 SNR
 
-本实验限定 Ncb=N。起点 k0 为：
+令复噪声 `n=nI+jnQ`，`E|n|²=σ²`，则两路独立高斯噪声的方差各为 σ²/2。直接在单位平均能量符号上加噪声时，`σ²=10^(−EsN0_dB/10)`。
 
-| RV | BG1 的 k0/Zc | BG2 的 k0/Zc |
+若 `y=hx+n`，除以 h 后的噪声方差是 `σ²/|h|²`。如果你按**接收数据 RE**的 Es/N0 设置 σ²，又在时域加入噪声，就要结合 FFT 缩放和 h 的功率复算。报告里应注明是 Es/N0、Eb/N0、SNR 还是估计的 SINR；不同口径不能直接套一条曲线。
+
+先做两个接收路径：oracle 使用仿真真值 h；estimated 使用 DM-RS 的 h_hat。前者用于隔离算法问题，不能成为真实接收机输入。若 oracle 都失败，应先查映射、尺度和 LLR，再查估计器。
+
+### 23.5 按问题顺序加入复杂度
+
+| 新加入的因素 | 先实现什么 | 验证方法 |
 | --- | --- | --- |
-| 0 | 0 | 0 |
-| 1 | 17 | 13 |
-| 2 | 33 | 25 |
-| 3 | 56 | 43 |
+| AWGN | 独立 I/Q 噪声、固定种子 | 测样本均值/方差、比较理论 QPSK BER |
+| 两径或多径 | 有状态 FIR | 单位冲激、整块/分块一致、卷积尾部 |
+| 频率选择性 | 每个导频 LS、频域插值 | 对照已知 CIR 的频响，而非只看星座 |
+| 定时偏差 | 窗口偏移与相关器 | 正负偏移扫描，区分 CP 内相位斜率和越界 ISI |
+| CFO | `exp(j2πf_off n/Fs)`、估计与补偿 | 零 CFO、符号间相位、补偿残差 |
+| 多接收天线 | MRC 或单层 MMSE | 一路退化、分支噪声不同、有效噪声方差 |
 
-当存在有限缓冲速率匹配、Ncb<N 时，不能继续套这个简化表。选位从 k0 开始，循环遍历 Ncb，跳过 NULL，收集 E 个有效位；因此既可能删去未选位，也可能重复选中某些位。
+本地运行入口：`cpp/build/pusch_demo link 12 2 2026`。需先按 [cpp/README.md](cpp/README.md) 构建。它验证调制级链路，尚无完整 LDPC，输出 BER/EVM，不能称 TB BLER。
 
-随后 Qm 交织将不同区域的位分散到一个调制符号的不同标签位置：
+**本章交付：** L05、DFT/FFT 独立对照、资源格与时域两种回环，以及一页明确波形简化项的实验说明。
 
-~~~text
-f[symbol*Qm + bit] = e[bit*(E/Qm) + symbol]
-~~~
-
-G/Qm/layers 的总单位数分到 C 个码块时，较早码块取 floor，余数单位分给末尾码块。配套 cb_output_lengths 对 G=20、Qm=2、层数1、C=3 返回 {6,6,8}，总和仍为20。
-
-### 23.5 接收回填与 HARQ 合并
-
-设发送位来自母码位置 p[i]，对应接收软值为 L[i]：
-
-~~~text
-Lmother[:] = 0             未观测位是擦除
-for i:
-    Lmother[p[i]] += L[i]  重复位累加
-~~~
-
-source_positions 让教学测试能看见这个关系；真实接收必须依授权/RV/NULL 规则独立生成 p[i]。上述 p 已反映交织顺序，所以回填同时完成解交织；不要额外再解一次。
-
-本工程返回 N 长 LLR。若译码器使用完整图，需要补回前 2Zc 个零软值；filler 是已知 0，按约定给正饱和软值。不同库可能内部完成这些操作，接入前确认接口。HARQ 合并是对**同一编码身份的同一母码位**相加，不是对两次不同 RV 的接收数组按下标直接相加。LLR 若经过不同归一化或量化，还要统一尺度/限幅。
-
-### 23.6 译码器进一步怎样开发
-
-接收机的译码算法并非 38.212 指定的唯一算法。可先用浮点 layered normalized min-sum，再做定点/SIMD。设变量 v 的当前总软值为 L_v，校验节点 c 的旧消息为 R_cv：
-
-~~~text
-Q_vc = L_v - R_cv_old
-R_cv_new = α × product(sign(Q_uc), u≠v) × min(|Q_uc|, u≠v)
-L_v = Q_vc + R_cv_new
-~~~
-
-每行统计最小值、次小值、最小值位置和总符号，避免为每个边重复遍历所有邻居；QC 的循环移位决定连续/环绕访问。每轮检查校验方程可以早停，但仍需按层次检查 CB/TB CRC。α、迭代上限、软值精度和饱和策略是实现选择，不能将某一组经验参数说成规范要求。
-
-**开发任务。** 编码后端接入之前，先给速率匹配制作 RV0–3 的位置图，测试 NULL、E<N、E>N 和多 CB。接入之后，增加随机 TB 的无噪声回环及独立向量。不要以随机序列冒充 LDPC 输出。
+---
 
 <a id="ch24"></a>
-## 24 Gold、QAM 与软解调的代码实现
+## 24 实验五：从 TB 到码块——CRC、分段和提升大小
 
-**规范定位：** [38.211 §5.1、§5.2.1、§6.3.1.1–§6.3.1.2](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf)。源码：[phy.cpp](/Users/Admin1/Desktop/5G_PUSCH/cpp/src/phy.cpp)。
+**依据：** [TS 38.212 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf) §5.1、§5.2.2、§5.3.2、§6.2.1–§6.2.4。**目标：** 在尚未实现 LDPC 时，把每个码块应编码的内容和长度完全确定。
 
-### 24.1 Gold 序列：从递推到寄存器
+### 24.1 先写完整的长度账本
 
-对当前数据场景 q=0：
+| 名称 | 定义 | 本例 A=1416，R=526/1024 |
+| --- | --- | --- |
+| A | TB 有效载荷，不含 TB CRC | 1416 |
+| L_TB | TB CRC 长度 | 16 |
+| B | A+L_TB | 1432 |
+| BG | LDPC 基图 | 2 |
+| C | 码块数 | 1 |
+| K′ | 每 CB 的有效输入，含适用的 CB CRC，不含 filler | 1432 |
+| K_b | 选择 Zc 时使用的列数参数 | 10 |
+| Zc、i_LS | 提升大小及其所属集合索引 | 144、4 |
+| K | 编码器输入长度 | 10×144=1440 |
+| F | filler 数 K−K′ | 8 |
+| N_full | 完整图对应的变量节点数 | 52×144=7488 |
+| N | 前 2Zc 打孔后的序列长度 | 50×144=7200 |
+| E | 当前发送从该 CB 取出的比特数 | 2760 |
 
-~~~text
-c_init = RNTI × 2^15 + n_ID
-Nc = 1600
-x1[n+31] = x1[n+3] XOR x1[n]
-x2[n+31] = x2[n+3] XOR x2[n+2] XOR x2[n+1] XOR x2[n]
-c[n] = x1[n+Nc] XOR x2[n+Nc]
-~~~
+把这些字段写成日志。`K_b` 是选提升大小的参数，BG2 编码器输入仍是 `10Zc`；不能在小块分支把它误改为 `6Zc`。
 
-x1 初始只有 x1[0]=1；x2[0..30] 按 c_init 的低位到高位初始化。数组参考实现容易看清下标，代价是保存大量历史；优化版可用两个 31 位状态寄存器或块级生成。测试中用独立 packed-state 递推交叉检查，不只做两次加扰的回环。
+### 24.2 L06：自己写 CRC16，再读 CRC 接口
 
-数据加扰是 b'[i]=b[i] XOR c[i]。两次相同 XOR 会还原输入，但这不能证明 c_init 正确。若存在 UCI 占位符，加扰规则有额外处理，本实验没有这些符号。
+TB 的 A≤3824 时使用 CRC16，更大时使用 CRC24A；多码块时还需 CB CRC24B。CRC 是 GF(2) 多项式除法，不是整数加法校验和。
 
-### 24.2 把 QAM 标号写对
-
-QPSK：
-
-~~~text
-d = [(1-2b0) + j(1-2b1)] / √2
-~~~
-
-16QAM：
-
-~~~text
-I = (1-2b0) × [2-(1-2b2)] / √10
-Q = (1-2b1) × [2-(1-2b3)] / √10
-d = I + jQ
-~~~
-
-16QAM 的 bit0、bit1 决定 I/Q 符号，bit2、bit3 决定各自幅度；不能把头两位全当成 I、后两位全当成 Q。平均能量归一化中的 √10 是全部等概率点的平均，不是每个点都有相同模长。
-
-开发时枚举全部 4/16 个标签，检查坐标、平均能量和判决回环。64/256QAM 可按规范扩展，但不要只通过“看起来像方格”的星座图验证位标号。
-
-### 24.3 为什么硬判决不够
-
-接收点靠近判决边界时，0/1 的硬选择丢失可信程度。译码器更需要 LLR：
-
-~~~text
-L(b) = log[P(b=0 | y) / P(b=1 | y)]
-max-log近似:
-L(b) ≈ (min_{s:bit=1}|y-s|² - min_{s:bit=0}|y-s|²) / σ²
-~~~
-
-这里 σ²=E|w|²，正数更相信 0。星座等概率、均衡后的等效增益为 1 时适用此形式。若解调器使用相反符号定义，要在接口统一；反号会让译码器把每个位都向错误方向推。
-
-代码枚举候选点，是易读的参考算法。生产实现可使用分段距离表达式、查表或 SIMD。验证应覆盖各星座点、边界附近、小/大方差和非有限输入。注意 bit2/bit3 的 LLR 不等同于简单 I/Q 符号。
-
-### 24.4 软解扰是符号翻转
-
-加扰位 c=1 时，两个位假设对换，所以软解扰为：
+实现 `crc16(bits)`，初始状态零，按 MSB-first 输入。每次取最高位与当前输入位 XOR，移位并限宽，反馈为 1 时 XOR `0x1021`。不要同时再追加 16 个零运行该反馈形式；不同多项式实现形式必须先推导对应关系。
 
 ~~~cpp
-if (sequence[i]) llr[i] = -llr[i];
+// 处理一位的示意：reg 用至少32位无符号整数保存。
+const unsigned feedback = ((reg >> 15) & 1U) ^ bit;
+reg = (reg << 1) & 0xffffU;
+if (feedback) reg ^= 0x1021U;
 ~~~
 
-如果先硬判决再 XOR，可以计算 BER，却丢掉了译码需要的软信息。定点实现要处理最小负值取反的溢出，例如 int8 的 -128 没有对应 +128；应约定对称饱和范围，如 -127..127，并测试累加饱和。
+L06 的 ASCII `123456789` 已知结果为 `0x31c3`。再与显式多项式长除法比较随机向量，验证追加 CRC 后余数为零，翻转单比特应检出。扩展 CRC24A/24B 时，应独立检查多项式和位序。
 
-**开发任务。** 在不同 SNR 下对比硬判决结果与 LLR 符号；接入 LDPC 后再比较软译码和硬信息译码。未接入编码前不要将 QAM BER 的改善称为编码增益。
+### 24.3 分段先从 C=1 写起，再加入 C>1
+
+按 §6.2.2 选择 BG：小 A、低目标码率等条件会选择 BG2；不能只根据调制阶数。按基图上限确定是否分段；多 CB 时每块增加 CRC24B，再选择能够容纳各 CB 的最小允许 Zc。允许值来自表 5.3.2-1，不是任意偶数或任意 2 的幂。
+
+手算第二个案例 `A=16000,R=512/1024`：TB CRC24A，B=16024，BG1，C=2，加入两份 CB CRC 后 B′=16072，每块 K′=8036；Zc=384、K=8448、每块 filler=412。实现分段后，对两块的有效部分分别验 CRC24B，去 CB CRC/填充后拼接，再验 TB CRC24A。
+
+本地教学规划器对某些不能均分的任意输入采用拒绝策略。正式扩展必须按规范处理分配和所需补齐，并区分“用于分段的补零”和“LDPC filler”；不要把所有任意长度静默向下取整。
+
+### 24.4 filler 在三个阶段有三种表示
+
+1. 编码输入：filler 是已知零，作为零参与奇偶校验计算。
+2. 速率匹配：这些位置是 NULL，循环选位时跳过，不消耗 E。
+3. 接收译码：已知零对应强正 LLR；未发送的未知比特则是 LLR=0，两者不同。
+
+本例 filler 在完整输入索引 `[1432,1440)`；前 2Zc=288 位打孔后，在 N 序列中对应 `[1144,1152)`。把这个区间写进日志，是抓住索引错位的有效方法。
+
+### 24.5 读真实 segmenter，回答三个问题
+
+按顺序读 [ldpc_segmenter_tx_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_tx_impl.cpp) 的 `new_transmission`、`read_codeblock`、`get_cb_metadata`，再读 [ldpc_segmenter_rx_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_rx_impl.cpp)。观察：
+
+- 为什么发送侧传入的是 TB 字节，却返回按 CB 读取的接口？哪些工作延后到 `read_codeblock` 执行？
+- CRC、补齐、filler 的信息分别保存在哪里？接收侧为什么也需要分段元数据？
+- C 个 CB 的 E_r 不一定完全相等，后续 rate matcher 从哪里拿各块长度？
+
+本地对照 [coding.cpp](cpp/src/coding.cpp) 的 `ldpc_plan`、`segment_tb`。保留教学公式版与实际项目元数据版之间的对应表。
+
+**本章交付：** L06、两个长度账本、单块/多块分段检查、filler 坐标表；暂不要求解码成功。
+
+---
 
 <a id="ch25"></a>
-## 25 DM-RS 和资源映射的索引工程
+## 25 实验六：真正进入 NR LDPC 编码与译码
 
-**规范定位：** [38.211 §6.4.1.1、§6.3.1.6](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf)。代码入口：dmrs_type1、dmrs_indices、data_indices、map_grid。
+**依据：** [TS 38.212 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf) §5.3.2、§6.2.4。**目标：** 理解并构造合法 NR 码字，学会验证译码器，而不把 LDPC 当作一个无法观察的黑盒。
 
-### 25.1 三套坐标都要保留
+### 25.1 先理解一个 3×6 的稀疏校验矩阵
 
-本实验的平面格子用 **BWP 内 k** 索引；授权的 start_prb 是 **BWP 内 PRB**；CP-OFDM DM-RS 的序列参考是 **CRB 0**。设 BWP 的 CRB 起点为 crb_start：
+若校验矩阵某一行连接比特 0、2、5，这行要求 `d0 XOR d2 XOR d5=0`。所有行同时满足，称 syndrome 为零。用 `vector<vector<unsigned>>` 保存每行相连列号，写一个 `syndrome(bits,rows)`；这个小矩阵只是讲解稀疏校验，不是 NR 基图。
 
-~~~text
-格子宽度 W = 12 × bwp_prbs
-格子索引 = l × W + 12 × rb_BWP + k_RB
-DM-RS序列偏移 = 6 × (crb_start + start_prb)
-~~~
+例如三行的邻接表为 `[[0,2,5],[1,2,4],[0,3,4]]`，非零向量 `[1,0,1,0,1,0]` 满足三条校验；翻转第 2 位（从零编号）后，前两条校验失败。先用全零向量通过，再用这个非零向量检查。**全零码字验证太弱**：错误的移位方向、错误基图甚至很多错误的编码器也能输出全零。
 
-只看相对 PRB 起点生成序列，会在 BWP 从 CRB0 移开时出错。配套测试让“crb_start=0,start_prb=5”和“crb_start=5,start_prb=0”产生相同 DM-RS 值，但它们在各自格子的坐标不同。
+### 25.2 从基图提升到 H：每个整数变成一个循环移位块
 
-### 25.2 生成当前受限 DM-RS
+BG1 有 46×68 个块位置，信息部分 22 个列块；BG2 为 42×52，信息部分 10 个列块。块边长 Zc。无边的位置是全零矩阵；有边的位置按选定 `i_LS` 表值计算移位量 `P=V mod Zc`，得到循环置换矩阵。
 
-普通配置、nSCID=0 时的序列初始化：
+在自己的稀疏表示中可约定：校验行 `(r,z)` 连接变量列 `c×Zc+(z+P)%Zc`。这个正负号要与矩阵定义及向量排列一起验证，不要看到源码的“backward shift”就机械地把公式改负。
 
 ~~~text
-c_init = [2^17 × (14 × n_slot + l + 1) × (2n_ID+1) + 2n_ID] mod 2^31
-r[m] = [(1-2c[2m]) + j(1-2c[2m+1])] / √2
+for each base-row r:
+    for z in 0..Zc-1:
+        acc = 0
+        for (c, V) in edges_of_base_row(r, i_LS):
+            acc ^= full_codeword[c*Zc + (z + V%Zc)%Zc]
+        syndrome[r*Zc+z] = acc
 ~~~
 
-代码先用 uint64 计算，再取低 31 位，避免中间乘积溢出。n_slot 是帧内时隙编号；l 为相应符号索引。n_ID 来自适用的 DM-RS 标识配置，不必与数据加扰 n_ID 相同。
+依次读 [ldpc_graph_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_graph_impl.cpp) 和 [ldpc_luts_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_luts_impl.cpp)：图、提升集合和邻接表是不同数据。移位表来自规范时，应记录条款/表号并逐项检查；从项目复用表时，保留其许可和来源。不要手工随意拼一张“类似 LDPC”的表。
 
-本实验 port1000 的 type1 位置是每 RB 的偶数子载波 0、2、4、6、8、10；对应普通配置的一个 CDM 组。在 l=2 的该组 RE 放导频，其他允许数据的位置放数据。DM-RS 缩放 β=1，功率提升没有在这里实现。
+### 25.3 先写正确编码器，再研究快速结构
 
-### 25.3 生成掩码，再映射数据
+把 H 分成信息列与校验列：`H=[H_s H_p]`。已知 s，求 `H_p p = H_s s`，所有加法在 GF(2) 中。第一版可以对小 Zc 用带行交换的 GF(2) 消元得到 p，作为结构化编码器的参考。消元时要检查秩和主元，不要在实数域求逆；它耗时和内存较大，不用于实时数据面。
 
-先生成 DM-RS 索引和数据索引，再检查：
+第二版利用 NR 基图的结构，把前几个校验节点与后续扩展区域分开。阅读 [ldpc_encoder_generic.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_encoder_generic.cpp) 的 `select_strategy`、信息部分预处理、high-rate 分支和扩展区域，观察为什么 BG 和 i_LS 会影响编码路径。重点是把每一步对应回校验方程，而不是逐行照抄优化实现。
+
+验收顺序：完整码字长度正确→前 K 位与输入一致→全 syndrome 为零→丢弃前 2Zc 后，与独立项目向量逐位一致。仅 `H×d=0` 不能排除两个模块共享同一张错误 H，因此还要独立向量。
+
+### 25.4 两条可行路径：自己实现，或接入真实后端
+
+如果希望先完成完整收发链，可先把固定版本的 srsRAN LDPC 接成后端，然后回头独立实现。需要读的接口是 [ldpc_encoder.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder.h)、[ldpc_encoder_buffer.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder_buffer.h) 和 [channel_coding_factories.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/channel_coding_factories.h)。
+
+固定版本提供 `create_ldpc_encoder_factory_sw`，encoder 的 `encode` 返回缓冲区引用，再由 `write_codeblock` 读取未压紧比特。适配器步骤如下，属于集成契约，**未作为已编译的 srsRAN 插件交付**：
 
 ~~~text
-索引均在 [0,14W)
-DM-RS 与 data 集合不相交
-data_count = 1380
-DM-RS_count = 60
-每个索引只被写一次
-数据顺序：先按符号，再在频域按子载波递增
+1. 构建 generic encoder factory，检查创建结果；复用 encoder 对象。
+2. 将本地 K 个 unpacked bit 按 bit_buffer 的规则压紧；filler置0。
+3. 用显式映射设置 BG 与 lifting_size 枚举，Nref=0 表示本实验不做 LBRM。
+4. encode 返回的借用缓冲区不能越过对象生命周期或下一次编码调用随意保留。
+5. 检查 get_codeblock_length()==N，再 write_codeblock(dst,0) 读取。
+6. 这里读出的是前2Zc已打孔的 N 位；不要再打孔一次。
+7. 速率匹配用单独的 filler mask；不要修改真实编码数据来混入-1。
 ~~~
 
-映射顺序就是比特与 RE 的对应关系。仅检查两个集合数量相同不够：如果某个符号次序反了，数量和占用图仍可能看起来正确。检查第一个、最后一个以及跨符号边界的样本；用非重复标记值映射后独立提取，而不是始终填同一个复数。
+阅读 [ldpc_encoder_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_encoder_impl.cpp) 与 generic 实现确认输出坐标。后端 wrapper 应把 0/1、长度、枚举、错误状态的转换集中在一个文件，其他教学模块不依赖 srsRAN 类型。
 
-实际多端口 DM-RS 还涉及 CDM 组、频域/时域正交权、单双符号和端口选择表；“端口数”等于“需扣掉的数据 RE 数”并不成立。多个端口可以共享一组资源并通过正交码分离。
+### 25.5 L07：先写一个校验节点的消息更新
 
-### 25.4 扩展计划
+译码输入是软值，不是接收端已经知道的发送比特。采用 normalized min-sum 作为教学算法，消息 `q_j` 越正越相信 bit 0。发往边 j 的消息排除该边本身：
 
-每次仅增加一个维度：先多个 DM-RS 符号，再不同 CDM group without data，随后 type2/多端口、PTRS、跳频和变换预编码。每项都需要配置选择、索引、幅度/正交性和独立参考四类检查。typeA/typeB 的相对时间起点不同，DM-RS 位置应由规范表和配置生成，不能永远写死 l=2。
+~~~text
+r_j = alpha × product(sign(q_k), k≠j) × min(|q_k|, k≠j)
+~~~
 
-**开发任务。** 输出一份 14×600 的 RE 类型表，0=空闲、1=数据、2=DM-RS；与索引计数相互核对。把 crb_start 改为 20，确认数据位置不变、DM-RS 序列正确变化，然后用独立工具对照。
+此处零消息的符号按 +1 处理，幅度仍为零。实现 `check_node(q,alpha)`。先用 O(d²) 双循环，度数 d 很小时更易检查。L07 包含 `q=[2,−3,4], alpha=0.75`，结果为 `[-2.25,1.5,-1.5]`；还包含最小值重复和零输入。再实现 O(d) 的最小值、次小值、符号 XOR 版本，与双循环版本比较，特别检查相同最小值出现两次时的行为。
+
+### 25.6 从一个节点到 layered 译码器
+
+维护每个变量节点当前总 LLR `L_v`，每条边上一轮的校验消息 `R_cv`。开始时 `L_v=channel_llr_v`，所有 R 为零。按校验层执行：
+
+~~~text
+Q_cv = L_v - R_cv_old          # 先去掉旧贡献
+R_cv_new = check_node(Q_c*)   # 对同一校验节点的所有边更新
+L_v = Q_cv + R_cv_new         # 写回，供下一层立即使用
+~~~
+
+每轮后硬判决、检查 syndrome，必要时验 CRC；设置最大迭代次数并返回明确成功/失败。没有收到的未知变量初始化为 0；已知 filler 用强正值或固定变量机制。浮点教学版先控制数值范围，再研究整数饱和。
+
+对照 [ldpc_decoder_generic.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_decoder_generic.cpp) 的变量到校验、两个最小值、符号、校验到变量和总软值更新；再读 [ldpc_decoder_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_decoder_impl.cpp) 的迭代组织。
+
+**重要接口区别：** 自己的完整图译码器通常接收 68Zc/52Zc 的全长 LLR，需要补前 2Zc 的零；固定 srsRAN decoder 接收打孔后长度的 LLR，内部补这部分。适配时先查 [ldpc_decoder.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_decoder.h) 和 `load_soft_bits`，不能把全长数组直接传过去。
+
+### 25.7 本章的三道验收门
+
+| 验收门 | 输入 | 判据 |
+| --- | --- | --- |
+| 图与编码 | 非零随机 s、多个 BG/Zc/i_LS | syndrome 零、系统位相同、独立码字逐位相同 |
+| 无噪声译码 | 合法码字映成有限正负 LLR，按真实坐标打孔/填充 | 恢复 K′ 有效输入，CRC 成功 |
+| 有噪声译码 | 固定噪声样本、最大迭代数、多个码率 | 失败可复现，迭代统计与 BLER 正确；不要求每个样本都成功 |
+
+上游 [ldpc_enc_dec_test.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/ldpc_enc_dec_test.cpp) 是阅读入口。其测试目标需要 PHY 测试向量选项与对应数据，构建方法见第 29 章。
+
+**本章交付：** L07、稀疏 syndrome 检查器、一个真实 NR 编码后端与接口报告，以及译码器的逐层/逐轮日志。若后端尚未完成，应在里程碑中标记 M2 未通过。
+
+---
 
 <a id="ch26"></a>
-## 26 OFDM、同步、信道估计与均衡
+## 26 实验七：速率匹配、软恢复和 HARQ
 
-**规范定位：** 波形和时间定义查 [38.211 §4、§5.3、§6.3.1](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf)；发送准备时间查 38.214 §6.4。下面的同步、估计、均衡属于接收机设计方法，标准并不指定唯一算法。
+**依据：** [TS 38.212 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf) §5.4.2、§5.5、§6.2.5–§6.2.6。HARQ 新数据/重传的控制还涉及 38.321；本章重点实现物理层的比特选择与软合并。
 
-### 26.1 FFT bin 与资源格子怎样对上
+### 26.1 为什么 N 与 E 往往不相等
 
-数组格子的 k=0 是 BWP 最低子载波；FFT 输出的下标 0 通常表示 DC，后面含正频率，再含负频率。实验把 W 个子载波居中：
+N 是 LDPC 编码后打孔序列长度；E 是某一发送机会分给该 CB 的容量。E<N 时只发送部分位，E 也可能大于可用位数而重复发送。速率匹配在循环缓冲区中按 RV 起点选择、跳过 filler，并进行与 Qm 相关的比特交织。
 
-~~~text
-signed_bin = k - W/2
-fft_bin = (signed_bin + Nfft) mod Nfft
-~~~
+先固定 `Ncb=N`，不做 LBRM：BG1 的 RV 0–3 起点为 `{0,17,33,56}×Zc`；BG2 为 `{0,13,25,43}×Zc`。以后支持 LBRM 时必须回到表 5.4.2.1-2 按 Ncb/N 重新计算，不能沿用这个简式。
 
-这是一套明确的教学坐标，包含一个 DC bin，没有额外 DC 空洞。NR 的 Point A、载波中心、BWP 起点和实现频率搬移需要另外换算；不能将这个表达式直接当成任意设备的 RF 频率规划。
+### 26.2 L08：先返回坐标，再返回比特
 
-开发 FFT adapter 时，用单个 bin 的复指数测试频率方向和下标，再用多 bin 检查；仅画总功率频谱不能发现正负频率反转。
-
-### 26.2 CP 为什么能帮助接收
-
-循环前缀复制 OFDM 符号最后若干样点放到开头。在定时正确、信道在符号内近似不变、有效时延范围被 CP 覆盖等条件下，去 CP 后的线性卷积可转为循环卷积：
+练习固定 BG2、Zc=2、N=100、无 filler、QPSK。先生成 E 个循环选位坐标 `selected[j]=(k0+j)%100`，再按 Qm=2 交织：
 
 ~~~text
-Y[k] = H[k] X[k] + W[k]
+out[j*Qm+i] = selected[i*(E/Qm)+j]
+0≤i<Qm，0≤j<E/Qm
 ~~~
 
-这样各子载波近似可用一个复系数均衡。CP 太短、FFT 窗口不合适或信道变化很快时，这个关系会出现符号间干扰/子载波间干扰。比较 CP 时应关注对齐后的有效最大时延，而不只看 RMS 时延扩展。
+实现 `rm_positions(rv,e)` 并运行 L08。RV0、E=8 的结果为 `[0,4,1,5,2,6,3,7]`；RV1 为 `[26,30,27,31,28,32,29,33]`。接着支持 NULL：用 while 选够 E 位，每次读到 NULL 只推进输入游标，不推进输出计数；如果整个可用缓冲区都为空，应拒绝，避免死循环。
 
-代码固定 14 个符号、每个 CP=72 样点，输出 14×(1024+72)=15344 个样点。这是实验设定；**完整 NR 普通 CP 的长度随符号位置等变化，不能把该采样长度当作精确 0.5 ms 时隙。** 实际开发要由 38.211 时间单位和 numerology 生成每符号 CP/起点，并处理相位补偿与连续时隙。
+**为何保留位置表？** `out[i]=mother[pos[i]]` 可直接解释每一发送位的来源；软恢复也能复用此表调试。生产实现可能为了性能不保存整张表，但教学阶段它非常有价值。
 
-### 26.3 CFO、定时和采样时钟是不同误差
+### 26.3 多码块如何分 E_r
 
-载频偏差 CFO 为 Δf 时：
+令 `G′=G/(Qm×layers)`，先保证可整除。设 `γ=G′ mod C`：前 `C−γ` 块获得 `floor(G′/C)×Qm×layers` 位，最后 γ 块获得 `ceil(G′/C)×Qm×layers` 位。检查总和等于 G。
+
+示例 G=20、Qm=2、layers=1、C=3，得到 `[6,6,8]`。这个小算例用于算法检查，不代表一个完整合法授权。正式 G 必须来自资源与 UCI 预算。
+
+### 26.4 L09：在母码坐标上相加
+
+接收端先处理加扰/UCI等关系，再对各 CB 去交织，按位置把 LLR 放回母码坐标。没有观测的位置初值为 0；多次观测同一位置应相加，而不是覆盖。
+
+实现 `combine(pos,llr,n)`。`pos=[0,3,0]`、`llr=[1,−2,3]`、N=5 应得 `[4,0,0,−2,0]`。拒绝输入长度不同或越界位置。L09 通过后增加一个重复位 E>N 的例子。
+
+读取 [ldpc_rate_matcher_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_rate_matcher_impl.cpp) 的起点、filler 区间和交织，再读 [ldpc_rate_dematcher_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_rate_dematcher_impl.cpp) 的 `new_data`、去交织、软合并和 filler 强正值处理。真实实现把这些步骤融合了；先用分开的教学函数复现，再考虑融合。
+
+### 26.5 HARQ 缓冲区需要身份，而不仅是一个向量
+
+推荐为每个软缓冲区记录 UE、HARQ process、TB generation、新数据标记、A、BG、Zc、C、每 CB 的 Ncb 和有效状态。重传可能改变 RV、调制和 E，但合并必须回到同一个 TB 的兼容母码坐标。
 
 ~~~text
-r[n] = s[n] × exp(j2πΔf n/Fs)
-normalized_CFO = Δf / SCS
+新 TB：建立新的 generation，清零旧软值与 CRC 状态。
+同一 TB 重传：按当前 RV/E 生成位置，累加到既有母码软值。
+译码成功：报告有效 TB，按拥有者协议释放或重置资源。
+配置不兼容/进程失效：明确拒绝或重建，禁止静默混合两个 TB。
 ~~~
 
-它带来公共相位旋转和 ICI。比如 SCS=30 kHz、CFO=300 Hz，归一化频偏为 0.01。不能只在 FFT 后统一转一次相位就保证消除全部 ICI。
+NDI 控制不能仅以“RV==0”代替。新数据也可能在资源复用后占用相同 process；失败时也不能简单把全部软值清零。
 
-一种教学粗估计利用 CP 与其对应的符号尾部，计算 C=Σ conj(r[n])r[n+N]，估计 Δf≈angle(C)Fs/(2πN)；在这些假设下，存在约 ±SCS/2 的相位模糊范围。多径、噪声、定时和信道变化会影响它，需窗口选择与后续跟踪。
+### 26.6 用错误注入验证，而不承诺每次合并必成功
 
-定时偏移改变 FFT 窗口，CP 范围内可表现为频域相位斜坡；超过可用范围产生干扰。采样时钟偏差会随时间积累，不是固定的起点偏移。协议的 Timing Advance 帮助对齐上行到达时刻，接收算法仍需处理残余误差。
+固定一个 TB，产生 RV0 与 RV2 的两次接收。记录各自恢复位置、软值、单次与合并结果。在无噪声或受控擦除案例中验证覆盖；在 AWGN Monte Carlo 中统计总体 BLER。不能要求每个随机样本合并后一定更好，也不能给错误缩放的 LLR 赋相同可信度。
 
-**开发任务。** 用 channel 实验加 CFO，画相邻样点相位差；扩展连续相位状态，使分两块处理与整块处理一致。现有函数每次从相位 0 开始，不能直接用于连续流。
+故意做三件事：把第 2 次软值覆盖第 1 次；用不同 TB 的 LLR 合并；新 TB 到来不清旧缓冲。用坐标表和 generation 日志定位每个问题。上游对照入口：[ldpc_rm_test.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/ldpc_rm_test.cpp)。
 
-### 26.4 从平坦 LS 到二维信道估计
+**本章交付：** L08、L09、含 NULL/重复/多 CB 的向量，以及新数据与重传状态测试。
 
-已知导频 r，接收 y=h r+w。单 RE 的 LS 为 h_hat=y/r；对于一个常数 h，多导频平均：
-
-~~~text
-h_hat = Σ y[p] conj(r[p]) / Σ |r[p]|²
-~~~
-
-本工程采用后者，估计一个 h。它在平坦静态实验中合理；在多径信道中，频率上的 H[k] 不同，直接全带平均会把不同相位互相抵消。
-
-扩展步骤：先在各 DM-RS RE 上计算 LS；多端口先按正交权解扩；再做频域、时域插值或统计估计，得到各数据 RE 的 H[k,l]。导频密度限制可跟踪的变化速度，不可能靠任意插值恢复全部信道信息。
-
-LMMSE 估计的一种形式为：
-
-~~~text
-H_hat_data = R_dp (R_pp + σ²/Es_p × I)^(-1) H_LS_p
-~~~
-
-R_dp/R_pp 表示目标点与导频点、导频点之间的信道相关。矩阵求解需要数值稳定性和计算预算；相关模型不匹配时，复杂估计器未必优于简单插值。噪声可由合适的残差或空闲资源估计，但必须考虑插值误差和其他用户干扰，不能总把 LS 拟合残差当作纯热噪声。
-
-### 26.5 从单天线到 MIMO
-
-单层 y=h x+w，可以除以 h，但深衰落时噪声会被放大。多接收天线、单层常用 MRC：将每路信号乘 conj(h_r) 后相加，再除以 Σ|h_r|²；需同时计算输出噪声方差。
-
-多层模型为 y=H x+w：x 是 Nt 层的列向量，y 是 Nr 接收通道的列向量，H 为 Nr×Nt 矩阵。上标 H 表示共轭转置，不是信道名字的重复。
-
-~~~text
-ZF:   W = (H^H H)^(-1) H^H
-MMSE: W = (H^H H + σ²/Es × I)^(-1) H^H
-x_hat = W y
-~~~
-
-以上 MMSE 假设空间白噪声和独立同功率层；存在有色干扰时应引入协方差。矩阵接近奇异时 ZF 放大噪声，MMSE 用正则项折中；工程上通常用分解/求解，避免显式求逆。
-
-解调前还要计算 G=WH 的每层有效增益、残余层间干扰和 σ²WW^H 对应的噪声。若把 x_hat_i 除以 G_ii，则等效方差也除以 |G_ii|²。只使用输入 σ² 生成每层 LLR，会在弱层或病态信道下给出错误置信度。
-
-### 26.6 一个适合调试的扩展顺序
-
-先完成静态 h=1 无噪声；再常数复 h；随后 AWGN、静态短多径和逐 RE 理想 H；再将理想 H 换成 DM-RS 估计；最后才加入 CFO、定时、移动和 MIMO。一次改变太多因素，会难以判断误码来自模型、索引、估计还是译码。
-
-每一步都保留 oracle 模式：理想同步、理想信道/方差只用于定位与性能上界，真实接收路径不能读取这些真值。报告中分别列出实际可获得的信息。
+---
 
 <a id="ch27"></a>
-## 27 可运行实验、误码曲线与验证方法
+## 27 实验八：把模块接成可验证的编码 PUSCH 链路
 
-### 27.1 编译并运行已有工程
+**依据：** [TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §6.3.1；[TS 38.212 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf) §6.2；资源参数依据 [TS 38.214 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf) §6.1.4。**目标：** 明确区分比特级自检、调制级回环和真正的 TB 译码实验。
 
-需要 C++17 编译器、CMake ≥3.16。位于教程目录时执行：
+### 27.1 L10：软解调必须同时交付可靠度
 
-~~~sh
-cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
-cmake --build cpp/build -j 4
-ctest --test-dir cpp/build --output-on-failure
-cpp/build/pusch_demo budget
-cpp/build/pusch_demo coding
-cpp/build/pusch_demo link 12 2 2026
-cpp/build/pusch_demo link 12 4 2026
-cpp/build/pusch_demo channel
-cpp/build/pusch_demo measure
-cpp/build/pusch_sweep 2 100 > cpp/results/qpsk.csv
-cpp/build/pusch_sweep 4 100 > cpp/results/qam16.csv
-cpp/build/pusch_bench
-~~~
-
-budget 的固定结果：
+对于接收符号 y 和噪声方差 σ²，max-log LLR 为：
 
 ~~~text
-RIV=455 SLIV=55
-actual_data_RE=1380 TBS_RE=1380 G=2760 TBS=1416
-TB_CRC=16 B=1432 BG=2 C=1 Zc=144 iLS=4 K=1440 N=7200 filler=8
+L_b(y) = [ min(s:bit_b=1)|y-s|² − min(s:bit_b=0)|y-s|² ] / σ²
 ~~~
 
-link 是时域平坦 AWGN 链路，包含 OFDM 和 DM-RS LS；sweep 则在调制符号上直接加噪声、假定 h=1，是独立调制基线。二者可以交叉比较趋势，但不要期待相同随机样点或完全相同 BER。
+它符合正数倾向 0 的约定。单位能量 QPSK 时，两位的 LLR 分别为 `2sqrt(2)Re(y)/σ²` 和 `2sqrt(2)Im(y)/σ²`。实现 `qpsk_llr` 并运行 L10：输入 `(1−j)/sqrt(2)`、σ²=0.5，应为 `[4,−4]`。先用穷举距离版本核对公式，再研究 [demodulation_mapper_qpsk.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_modulation/demodulation_mapper_qpsk.cpp) 的实现形式与定点表示。
 
-### 27.2 当前 link 实验怎样工作
+对 16QAM 先按标签穷举点集，不要自己猜分段函数。均衡器输出有有效增益和噪声方差；若 MMSE 输出没有除去有效增益，不能直接按单位增益星座求距离。
+
+### 27.2 按这个顺序接线，每次只加入一个新依赖
 
 ~~~text
-G 个随机比特 -> 加扰 -> QAM -> 数据/DM-RS格子 -> IFFT+固定CP
--> 常数h + 时域AWGN -> 去CP+FFT -> DM-RS平均LS
--> 除以h_hat -> max-log LLR -> 符号翻转解扰 -> 判决/BER/EVM
+发端：
+TB(A) → TB CRC(B) → CB分段(K′/K)
+→ 真正LDPC(N) → rate matching(E_r) → CB拼接(G)
+→ 加扰 → QAM → 单层映射 → DATA/DM-RS资源格 → OFDM
+
+信道：已知平坦h → AWGN → 多径/CFO（逐步加入）
+
+收端：
+OFDM解调 → DM-RS估计/均衡 → 软解调 → 软解扰
+→ 各CB拆分 → rate recovery/HARQ → LDPC译码
+→ CB CRC/去填充 → 重组TB → TB CRC → A位数据
 ~~~
 
-Es/N0=12 dB、QPSK、seed=2026，在本机一次 link 运行中 2760 位无错误，EVM≈0.2533。**单次 BER=0 只说明该批次没有观察到错误。** 它不能证明链路永不出错，更不能当作 TB 解码成功。保存的结果见 [运行记录](/Users/Admin1/Desktop/5G_PUSCH/cpp/results/验证记录.md)。
+第 1 轮去掉资源格与波形，将真正 LDPC 码字通过有限正负 LLR 接到恢复/译码；第 2 轮加入 QAM/AWGN；第 3 轮加入 DM-RS 资源格；第 4 轮加入 OFDM。每轮都从已通过的上一轮开始，避免同时调三个错误。
 
-均衡后噪声方差按 σ²/|h_hat|² 近似，未纳入信道估计误差；实际接收机要改进方差估计和 LLR 校准。
+第 28 章加入 UCI 后，数据加扰占位和解复用关系更复杂，不能继续无条件使用上面“所有位都是 UL-SCH 数据”的路径。
 
-### 27.3 Monte Carlo 曲线怎么读
+### 27.3 让 trace 成为协议，而不只是 printf
 
-配套 sweep 在 0–20 dB、步长2 dB，各运行100个1380符号批次。每个 QPSK 点累计276000位；16QAM累计552000位。理论上，理想未编码 QPSK：
+每个阶段保存配置摘要、数组形状、位序/轴顺序、样本数据、来源版本和数值约定。建议目录：
 
 ~~~text
-BER = Q(√(Es/N0))
-Q(x) = 0.5 × erfc(x/√2)
-EVM_rms ≈ √(1/(Es/N0))
+case_0001/
+  config.json        # 规范版本、源码commit、种子、所有生效参数
+  tx_tb.bits
+  cb00_input.bits
+  cb00_ldpc.bits     # 明确是N，不是N_full
+  cb00_rm_positions.csv
+  tx_grid.csv        # port,l,k,re,im
+  rx_llr.csv         # index,value；标注是否已解扰
+  rx_tb.bits
+  result.json        # TB CRC、错误数、迭代、耗时、失败阶段
 ~~~
 
-本机 QPSK 在 0 dB 得到 BER≈0.15884，10 dB≈0.0006884，12 dB≈0.00004710；14 dB 及以上这次未观察到错误。这些值随有限样本波动，应与理论趋势及统计区间比较。
+两个工具对照时，先统一输入契约。编码数据比较逐位相等；浮点 IQ 比较绝对/相对误差与归一化；LLR 要先对齐符号和尺度，再看误差。不要对未对齐的数组直接输出一个“相似度”。
+
+### 27.4 独立对照分三层，不用整机启动作为第一关
+
+1. **算子级：** Gold、QAM、CRC、LDPC、速率匹配使用小向量或固定项目测试向量。
+2. **链路级：** 固定 PUSCH 配置，将自己发送端生成的资源格交给参考接收路径；分别比较解调、解复用、译码结果。
+3. **系统级：** 在完整配置支持后，再测试实时调度、HARQ 生命周期和真实接口。
+
+仅自己的 Tx/Rx 回环可能隐藏成对错误。上游 [pusch_processor_vectortest.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_vectortest.cpp) 展示以已知输入/输出检查处理器的组织方式；它与使用替身的 processor 单元测试用途不同。
+
+### 27.5 BER、BLER 和零错误该怎样报告
+
+未编码 BER 分母是比较的调制级信息位数；TB BLER 分母是实际尝试译码的 TB 数，失败按 CRC/约定判据计数。统计多次重传时，再明确首传 BLER、每轮 BLER、最终交付成功率和 goodput，不能混成一个数。
+
+原有调制基线曲线如下，用来验收 Gold/QAM/噪声/软解调之前的基础，不代表已实现编码 PUSCH：
 
 ![未编码调制的 BER 与 EVM 实验](assets/developer_ber.png)
 
-图中零错误点用上界标记，不画成“准确等于0”的对数坐标。对于近似独立 Bernoulli 位错误、N 次试验零错误，95% 单侧上界约为 3/N；QPSK 的276000位约为1.09×10^-5。衰落或编码会使位错误相关；计算 BLER 区间时应以独立 TB/信道实现为试验单位，而不能把所有位当独立样本。
+数据见 [qpsk.csv](cpp/results/qpsk.csv)、[qam16.csv](cpp/results/qam16.csv) 和 [本机验证记录](cpp/results/验证记录.md)。理想单位能量 QPSK 的 BER 为 `Q(sqrt(Es/N0))`；比较前确认横轴口径一致。有限 N 次近似独立试验观察到零错误，95% 单侧上界约为 3/N，而非真实错误率等于零；相关衰落样本需要重新考虑有效样本数。
 
-CSV 保存实际计数，便于重绘和检查。若希望测到10^-5量级，只有几千位远远不够。需要设置最大试验数、目标错误数和置信区间，而不是只用“固定100帧”覆盖所有 SNR。
+### 27.6 一个完整链路的验收表
 
-### 27.4 完整 PUSCH 验证分四层
+| 案例 | 应看到的证据 |
+| --- | --- |
+| 无噪声、一个非零 TB | 每级长度正确、最终 TB 一致、CRC成功 |
+| 多个随机 TB | 避免全零特例；跨 TB 清状态 |
+| BG1/BG2、单 CB/多 CB | 每块元数据和拼接都正确 |
+| RV0/1/2/3、多个 E | 坐标覆盖、重复计数和恢复值正确 |
+| 两种调制、多个资源分配 | 标签/交织/预算一起匹配 |
+| 独立参考向量 | 消除自回环的共错风险 |
+| 噪声扫描 | 原始失败数、TB数、迭代与置信信息可复查 |
 
-| 层次 | 怎么验证 | 能发现什么 |
-| --- | --- | --- |
-| 独立已知向量 | 固定授权、位序、输出与独立参考逐阶段比较 | 共同 TX/RX 错误、规范表或索引错误 |
-| 无噪声回环 | TB→编码→波形→解码→相同 TB | 链接、缓冲、缩放、母码回填 |
-| 有噪声链路 | 多配置、SNR、模型、种子，统计 TB/CB 失败 | 编码增益、接收算法退化、LLR 校准 |
-| 实时/互操作 | 目标平台、输入流、时限、设备/独立栈 | 采样定时、接口、负载、调度尾延迟 |
+**本章交付：** L10、完整 trace 示例、无噪声/独立对照/有噪声三类报告。没有真实 LDPC 后端时，只能完成调制级阶段，不能将其改名为完整编码链路。
 
-已有测试属于受限算法回归，尚未完成完整 PUSCH 独立向量和空口互操作。不能把测试次数或大量断言等同于规范一致性认证。
-
-### 27.5 完整编码链的 BLER 实验还缺什么
-
-接入 LDPC 编码、译码以及合法 UL-SCH G 分配后：
-
-~~~text
-TB_total += 1
-TB_failed += (decoded_TB != original_TB 或 TB CRC失败)
-BLER = TB_failed / TB_total
-goodput = 成功交付的新信息位 / 总仿真时间
-~~~
-
-记录首传 BLER、最终 HARQ 后失败率、平均发送次数与 goodput，避免重复计算重传数据吞吐。先用无 HARQ 验证一条编码链；再逐个测试 RV 和 NDI 状态；最后统计 HARQ。理想信道结果、实际估计结果和真实模型误差要分开报告。
-
-### 27.6 回归、随机种子与工具
-
-Release 中普通 assert 可能被去掉；本工程使用显式检查抛异常。测试包含 CRC 长除法、独立 Gold 寄存器、全星座标签、直接 DFT 和错误输入；AddressSanitizer/UBSan 构建流程见 README。
-
-固定 seed 帮助同一环境复现，但 C++ 正态分布变换不保证跨标准库逐样点相同。跨平台一致性需保存输入/噪声/期望输出文件，以及浮点绝对和相对容差。
-
-**开发任务。** 故意交换 I/Q、修改 Gold 初值、改变 FFT 缩放、翻转 LLR 符号，分别观察哪类测试首先失败。将每种故障写成“现象→第一处差异→根因→回归检查”的短报告。
+---
 
 <a id="ch28"></a>
-## 28 SIMD、CPU 架构与 Linux 实时性能
+## 28 扩展实验：UCI、变换预编码和多层 PUSCH
 
-### 28.1 先知道时间花在哪里
+**依据：** [TS 38.212 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138212/18.05.00_60/ts_138212v180500p.pdf) §6.2.7、§6.3；[TS 38.211 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138211/18.05.00_60/ts_138211v180500p.pdf) §6.3.1.1、§6.3.1.3–§6.3.1.5、§6.4.1.1；[TS 38.213 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138213/18.05.00_60/ts_138213v180500p.pdf) §9；[TS 38.214 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138214/18.05.00_60/ts_138214v180500p.pdf) §6.1.1、§6.1.3、§6.2。**目标：** 学会扩展配置，而不是在旧单层接口上不断增加含糊的布尔量。
 
-性能瓶颈可能是 LDPC 的大量迭代、信道估计矩阵求解、数据搬运、线程等待，也可能是分配/日志。先建立正确基线，分别测每模块、排队和总延迟；再查看指令、缓存和访存。不能仅因为岗位写了 AVX512，就假设每段算法都值得写 intrinsic。
+### 28.1 UCI 从“没有”到“一个受控案例”
 
-Amdahl 的一个例子：某内核占总时间20%，将它加速4倍，理想总加速为 1/(0.8+0.2/4)=1.176倍；其他开销会进一步影响结果。先改总耗时占比最大的模块。
+先保留无 UCI 基线，再选一个有 HARQ-ACK、无 CSI 的具体向量。为每个复用后的位建立归属标签：UL-SCH、ACK、CSI Part 1、CSI Part 2 或占位。使用规范算法确定容量和位置；不能简单把 ACK 接在 G 位数据末尾。
 
-### 28.2 一个真的可以编译的复乘内核
+建议拆成三个接口：`calculate_uci_budget(config)`、`build_mux_map(config,budget)`、`apply_mux_map(inputs,map)`。接收端按同一物理关系解复用，但对照测试要独立生成期待的归属表。短 UCI 编码与较长 UCI 编码路径不同，不能全部调用 UL-SCH 的 LDPC。
 
-[bench.cpp](/Users/Admin1/Desktop/5G_PUSCH/cpp/src/bench.cpp)对六个互不重叠的 float 数组做 SoA 复乘：
+先阅读 [ulsch_info.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/ran/pusch/ulsch_info.cpp) 的数量计算，再读 [ulsch_demultiplex_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/ulsch_demultiplex_impl.cpp) 的配置、每 OFDM 符号资源集合与 `demux_current_ofdm_symbol`。你应能在规范中找到每个计数变量的含义，而不是直接接受“项目这样算”。
 
-~~~cpp
-for (std::size_t i = 0; i < n; ++i) {
-    cr[i] = ar[i] * br[i] - ai[i] * bi[i];
-    ci[i] = ar[i] * bi[i] + ai[i] * br[i];
-}
-~~~
+### 28.2 x/y 占位为什么会影响解扰
 
-AoS 是 I,Q,I,Q 交错；SoA 将所有 I 和所有 Q 分开。SoA 方便直接向量加载，但增加转换可能抵消收益。FFT、信道和 SIMD 内核的格式需整体规划，不能每个模块各自转换一遍。
+对于很短的 UCI，复用流里可能出现特殊占位关系。占位不是普通 0/1 数据；加扰时的重复/占位规则必须按 38.211 §6.3.1.1 处理。固定版本 demultiplexer 接收软值及相应 scrambling sequence，并在短 UCI 分支中做相应修正。
 
-x86 分支使用 AVX512F 的 16 个 float lanes；以下为实际内核的一部分：
+因此添加 UCI 时要保留序列与归属信息，不能在通用解扰之后把它们全丢掉。先手工构造一个 QPSK 或16QAM 的短 UCI 小例，逐位列出：编码输入→占位→加扰结果→解调软值→恢复后的 UCI 软值。然后对照 [ulsch_demultiplex_test.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/ulsch_demultiplex_test.cpp) 的独立向量。
 
-~~~cpp
-const auto a = _mm512_loadu_ps(ar + i), b = _mm512_loadu_ps(ai + i);
-const auto c = _mm512_loadu_ps(br + i), d = _mm512_loadu_ps(bi + i);
-_mm512_storeu_ps(cr + i, _mm512_sub_ps(_mm512_mul_ps(a,c), _mm512_mul_ps(b,d)));
-_mm512_storeu_ps(ci + i, _mm512_add_ps(_mm512_mul_ps(a,d), _mm512_mul_ps(b,c)));
-~~~
+### 28.3 CSI Part 2 会改变处理依赖
 
-函数按目标特性单独编译，运行时检查支持后才调用；主程序保持通用指令。长度65539故意不是16倍数，尾部交给标量处理。loadu 允许不对齐加载，但并不授权越界。更高效的 FMA、mask tail 与对齐策略属于后续任务，需要检查数值差异和实际收益。
+一些配置下，CSI Part 2 的长度依赖 Part 1 的译码内容。读 [pusch_processor_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_processor_impl.cpp) 中 Part 1 的反馈处理：它重新计算 UL-SCH 信息、配置 Part 2 buffer 和 demultiplexer，并更新数据软位数。
 
-指令语义查 [Intel Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)，不要只看 intrinsic 名称猜加载宽度和所需特性。
+自己先画一张事件表：何时知道 Part 1 长度，何时知道 Part 2 长度，哪些软值要暂存，失败怎样报告。随后写替身译码器，主动延迟或失败 Part 1，验证下游不会使用未确定的长度。该练习主要验证控制依赖，不需要一开始就实现完整 Polar 译码器。
 
-### 28.3 SVE 不应写死 lane 数
+### 28.4 变换预编码不是给整张资源格再做一次 FFT
 
-Arm 的 SVE 向量长度可由实现决定；使用 svcntw 取得 float lane 数，svwhilelt 生成尾部谓词：
+先在每个适用的 OFDM 符号内，对该符号的调制符号向量做 DFT spreading，再进行资源映射和 OFDM；接收端在正确位置做逆变换。DM-RS 的生成与配置分支也会改变，不能只在既有 CP-OFDM 路径加一个开关。
 
-~~~cpp
-for (std::size_t i = 0; i < n; i += svcntw()) {
-    auto pg = svwhilelt_b32((std::uint64_t)i, (std::uint64_t)n);
-    auto a = svld1_f32(pg, ar + i);
-    // 其他加载/运算……
-    svst1_f32(pg, cr + i, real_result);
-}
-~~~
+实验步骤：用允许的分配和变换长度→核对能量与索引→无噪声逆变换→检查噪声方差经过 deprecoding 的处理→再对照 PUSCH demodulator 的变换预编码分支。长度、低 PAPR 序列、π/2-BPSK 等条件应逐项查规范并加入能力表。
 
-工程中完整分支在 __ARM_FEATURE_SVE 下编译，依据 [Arm ACLE](https://arm-software.github.io/acle/main/acle.html)。它是面向支持 SVE 的 CPU/OS 的目标二进制，并没有实现通用 Arm 的运行时 SVE 分派。普通 Arm64 不保证具有 SVE；本次 Apple arm64 主机没有运行 SVE 分支。
+### 28.5 多层从矩阵与端口开始
 
-要在支持的 Linux AArch64 平台上构建 SVE 目标，并测试不同向量长度、短数组和尾部。不要把“源码出现 SVE”称为已经完成 SVE 优化。
+单层中一个符号对应一个复数；多层要区分 codeword bits、layer symbols、DM-RS ports、物理发射/接收通道。定义 `H[rx][layer]` 和 `x[layer]`，写出 `y=Hx+n`，再实现两层小矩阵 ZF/MMSE。层数不是接收天线数；DM-RS 端口也不等于某根物理天线的编号。
 
-### 28.4 AMX 适合怎样的任务
+先测试单位 H，再测试非对角 H，再测试病态/秩不足和不同噪声功率；避免直接求逆，考虑矩阵分解或线性方程求解。输出每层有效噪声方差给解调器。资源预算、layer mapping、DM-RS 解扩和 rate matching 的 E_r 计算都必须一起扩展。
 
-AMX 使用 tile 进行矩阵运算，适合支持的数据类型和布局的密集计算，例如部分 AI 推理矩阵。它不自动适合零散复数操作、任意 FFT 或稀疏图遍历。需要考虑打包、类型转换、矩阵大小、误差与部署条件。
+**本章交付：** 每次只选一个扩展，提供其规范条件、接口变更、独立向量和回归结果。能力表里的“未支持”应触发显式错误，不应悄悄退化为单层无 UCI。
 
-本教程未实现 AMX。作为第二项目，可以选择可测量的 AI 矩阵内核，比较 FP32 基线与受支持的 BF16/INT8 路径；不把其中一种 CPU 的类型/能力当作全部 AMX 平台能力。查 [Intel AMX 示例](https://www.intel.com/content/www/us/en/developer/articles/code-sample/advanced-matrix-extensions-intrinsics-functions.html)，同时确认 CPU 特性、操作系统状态和进程许可，再计算端到端收益。
-
-### 28.5 定点与 SIMD 的正确性
-
-LDPC 软值常以8/16位定点保存，减少内存和增大向量并行度。优化重点可能是 min1/min2、符号异或、饱和加减和循环移位；更宽指令并不会自动解决访存瓶颈。
-
-先确定：量化 scale、对称范围、舍入、饱和与累计位宽。逐阶段比较浮点参考，统计饱和比例，再比较多个码率、长度、SNR 下的 BLER。逐值误差很小也可能改变临界译码行为；仅用最终耗时验收不够。
-
-### 28.6 Linux 侧怎样做实验
-
-下面是需要在 Linux 目标机执行的示例，本次没有执行这些系统操作：
-
-~~~sh
-lscpu
-taskset -c 2 cpp/build/pusch_bench
-perf stat -e cycles,instructions,cache-misses,context-switches,page-faults -- cpp/build/pusch_bench
-perf record -g -- cpp/build/pusch_demo link 12 2 2026
-perf report
-~~~
-
-可用事件和权限随 CPU/内核而异，按目标环境调整。先查看火焰图和计数，再决定是否处理线程迁移、NUMA 远端访存、缺页、锁、缓存行共享。相关机制可从 [Linux workload tracing](https://kernel.org/doc/html/latest/admin-guide/workload-tracing.html)和 [NUMA 统计](https://cdn.kernel.org/doc/html/latest/admin-guide/numastat.html)继续阅读。
-
-逐时隙的执行预算来自输入就绪时间到结果提交时限，不能直接把0.5 ms时隙周期全给某一函数。测量 p50/p95/p99、最大值、超时数量与负载。高优先级调度、CPU 隔离和锁页需要结合系统整体预算；应在专用环境中逐项验证，不能把这些开关当作可替代算法优化的万能设置。
-
-### 28.7 本次基准的实际含义
-
-本机执行 portable 源码分支，编译器可能自动向量化。一次运行65539个复乘，101批、每批100次，批平均耗时 p50≈13.26 μs、p95≈20.67 μs、p99≈29.71 μs。它只描述当时 macOS/AppleClang 环境；不是 AVX512/SVE 的实测结果，不是逐次调用或实际时隙的尾延迟。
-
-基准会校验所选内核与参考的最大误差、消费 checksum、预热并报告批次统计。后续应加入多数据规模、对齐/偏移、不同缓存状态、端到端内存转换成本和目标硬件反汇编。**开发任务：** 实现一个 SIMD 版本，用相同数据和误差门限比较，再写出性能变化的证据与限制。
+---
 
 <a id="ch29"></a>
-## 29 从多径信道到 3GPP 模型与数字孪生
+## 29 源码工程课：跟踪真实 PUSCH 接收调用链
 
-**补充依据：** [3GPP TR 38.901 V18.0.0](https://www.etsi.org/deliver/etsi_tr/138900_138999/138901/18.00.00_60/tr_138901v180000p.pdf)。它是信道建模报告，补充主线的 38.211–38.215；两者解决的问题不同。本章的 FIR 是自定义教学模型，尚未实现规范 TDL/CDL。
+### 29.1 从接口和测试进入，而不是从 main 开始
 
-### 29.1 从一个复增益到多个延迟副本
+按以下顺序阅读固定提交，每次只回答一组问题：
 
-最简单信道 y[n]=h x[n]+w[n]，只有一个常数复系数。更一般的离散 SISO 多径：
-
-~~~text
-y[n] = Σ a_p[n] x[n-d_p] + w[n]
-~~~
-
-d_p 是路径延迟样点，a_p 包含幅度和相位；随时间变化时还会产生多普勒。连续时延一般不是整数样点，直接四舍五入会改变频响和时延统计，需要分数延迟滤波或其他等价实现，并检验误差。
-
-[当前 channel.cpp](/Users/Admin1/Desktop/5G_PUSCH/cpp/src/channel.cpp)实现静态整数延迟 FIR，随后 CFO/AWGN。输入前历史置零，输出等长并截掉尾部；这适合单次演示。流式生产实现需要保存最大延迟历史、时间/相位状态，使“整块”和“分块”处理一致。
-
-### 29.2 功率时延分布、RMS 时延和频响
-
-对于不同延迟的离散抽头，令 P_p=|a_p|²：
-
-~~~text
-平均时延 τ_mean = Σ P_p τ_p / Σ P_p
-RMS时延 DS = √[Σ P_p (τ_p-τ_mean)² / Σ P_p]
-H(f) = Σ a_p exp(-j2πfτ_p)
-~~~
-
-dB 功率先变成10^(P_dB/10)再归一化；复幅度取 sqrt(P)并加相位，不能把 dB 数值直接乘输入。时延单位秒与样点之间通过 Fs 换算。
-
-实验抽头延迟{0,3,8}、功率{0.7,0.2,0.1}，Fs=30.72 MHz，平均延迟1.4样点，RMS时延为 sqrt(6.24)/Fs≈81.315 ns。它不是某个标准 TDL profile。改变延迟或相位观察 H(f)，然后在 CP 足够的无噪声 OFDM 中用真实 H[k]均衡，验证循环卷积关系。
-
-重复延迟的复抽头若相干叠加，应先合并增益，不能机械地把其独立功率相加。完整模型中还需区分单次实现与统计平均 PDP。
-
-### 29.3 38.901 的模型层次
-
-| 入口 | 关注内容 | 开发时的输入 |
+| 顺序 | 文件入口 | 要回答的问题 |
 | --- | --- | --- |
-| §7.2、§7.4 | 场景、路径损耗、LOS/NLOS、穿透等大尺度条件 | 场景、位置、高度、载频、可用范围 |
-| §7.5 | 多天线快速衰落系数生成 | 路径/簇、角度、天线、极化、移动 |
-| §7.6 | 空间一致性等附加机制 | 轨迹、相邻位置、环境状态 |
-| §7.7.1 | CDL 链路级模型 | 簇时延、角度、天线/极化、多普勒 |
-| §7.7.2、§7.7.3 | TDL 链路级模型与时延缩放 | profile、目标DS、多普勒、采样条件 |
+| 1 | [pusch_processor.h](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_processors/pusch/pusch_processor.h) | 输入数据、软缓冲、notifier、grid、PDU 分别由谁拥有？ |
+| 2 | [pusch_processor_unittest.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_unittest.cpp) | 用哪些替身检查协作？它能否证明真实算法数值正确？ |
+| 3 | [pusch_processor_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_processor_impl.cpp) | 估计完成后如何继续？UCI 与数据结果如何返回？ |
+| 4 | [pusch_demodulator_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_demodulator_impl.cpp) | RE 提取、均衡、可选逆变换、软解调、序列状态在哪发生？ |
+| 5 | [ulsch_demultiplex_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/ulsch_demultiplex_impl.cpp) | 软值如何进入不同 decoder buffer？ |
+| 6 | [pusch_decoder_impl.cpp](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_decoder_impl.cpp) | CB 任务如何分发、软合并、拼接并报告 TB CRC？ |
 
-实现 TDL 首先建立规范 profile 配置和单位换算，再实现对应随机衰落过程并检验其统计与时间相关。实现 CDL 还要处理角度、阵列与极化，才能生成空间相关的多天线信道。不能把每路 SISO 独立加噪声当作 CDL，也不能只抄一组延迟/功率便认为完成 TDL。
+源码使用工厂和接口注入以选择实现。不要把“类名很多”当作理解架构；画出每个接口传递的数据和生命周期，才能解释为什么需要这层抽象。
 
-不同 profile 包含不同传播条件；时延缩放、LOS/K 因子、空间过滤及 MIMO 扩展等应按相应条款使用。模型实现需固定版本和场景适用范围，不把经验三抽头冠以“3GPP TDL”。
-
-### 29.4 面向开发的信道引擎接口
-
-建议规划：
+### 29.2 真实调用链包含异步边界
 
 ~~~text
-ChannelConfig:
-  spec_version, model_id, carrier_Hz, sample_rate_Hz
-  delay_spread_s, velocity_mps, array_geometry, polarization
-  seed_streams, pathloss_mode, normalization_mode
-
-ChannelState:
-  fractional_delay_history
-  fading_generator_state
-  absolute_sample_index
-  Doppler/CFO_phase
-  spatial_state
-
-process(input[Nt, samples]) -> output[Nr, samples]
-inspect() -> reference CIR / H / model statistics （仅供验证）
+pusch_processor_impl::process
+  ├─ 获取依赖对象、检查配置、准备 CRB/DM-RS 参数
+  └─ estimator.estimate
+       └─ 完成通知 → process_data
+            ├─ 配置 UCI/data decoder buffers 与 demultiplexer
+            └─ demodulator.demodulate
+                 └─ codeword buffer → demultiplex → decoder softbit buffer
+                      └─ CB tasks → rate recovery + LDPC + CRC
+                           └─ join/concatenate → result notifier
 ~~~
 
-随机流按大尺度、小尺度、噪声等分开，避免仅添加一个新路径就改变全部噪声。是否单独施加路径损耗、是否归一化小尺度平均功率，都必须在接口声明，防止链路中重复加损耗。模型真值接口仅用于验证，不传给实际接收机。
+这是一张阅读路径图，不保证每个任务在不同线程执行。具体 executor 与配置决定调度方式。固定版本在拿不到依赖对象时会报告失败；这种资源耗尽路径也属于正确性，而不仅是性能问题。
 
-信道可能比 PHY 更耗时：多路径、分数延迟和多天线使卷积量增长。可考虑路径滤波共享、向量化或频域卷积；但应先验证时间变化和状态连续性，在保证模型语义后优化。
+### 29.3 写一个自己的同步处理器，再拆异步
 
-### 29.5 数字孪生多了什么
+第一版 `PuschRx::process(plan,grid,softbuffer)` 同步返回结果，结果含 CRC、有效 payload、诊断量和错误原因。第 2 版把信道估计与 CB 译码封装为任务；第 3 版再增加 executor、完成计数和 notifier。
 
-统计信道回答“这类场景可能是什么样”，孪生目标应回答“指定位置、时刻、环境与设备条件下会怎样”。它通常需要几何/材料/天线、实测数据、可校准参数及独立验证。仅设置一个随机 seed 复现信道，不足以称为已验证的孪生。
+异步版必须明确：借用的 grid 在所有任务完成前有效；softbuffer 独占或受控共享；结束通知只发一次；提交任务失败有处理路径；失败任务仍能使 join 完成；不同 UE/slot 的状态不混用。
 
-一个可执行项目的工作流：
+用可控 executor 模拟任务乱序、拒绝、异常和重复回调。测试只验证协议状态与生命周期，算法正确性继续由算子/向量测试负责。
 
-1. 明确预测对象：PDP、路径损耗、角度、时间相关、MIMO H，还是最终 BLER。
-2. 标定测量链：功率增益、时钟、频偏、天线与探测波形；记录测量不确定度。
-3. 同步元数据：位置、朝向、速度、时间、载频、环境状态和设备版本。
-4. 在训练/校准区域估计参数；在未参与拟合的位置、时间或路线验证。
-5. 先比较物理指标，再把同一接收机放进模型，比较 EVM/BLER/goodput。
-6. 对遮挡、移动、设备变化和未覆盖环境报告误差与适用范围。
+### 29.4 怎样构建并运行上游的相关测试
 
-这是针对该岗位的工程方案，不声称是 38.901 规定的唯一孪生流程。
+先读固定版本 [README.md](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/README.md) 的依赖和构建说明。在符合该版本依赖要求的开发环境中，可从以下最小相关配置开始；这里没有声称已经在当前 macOS 环境成功构建完整 srsRAN：
 
-### 29.6 不能只用一张 BER 曲线验收
+~~~bash
+cmake -S references/srsRAN_Project -B build-srsran \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DBUILD_TESTING=ON -DUSE_PHY_TESTVECTORS=ON
+cmake --build build-srsran --target pusch_processor_unittest --parallel
+ctest --test-dir build-srsran -N -R pusch
+ctest --test-dir build-srsran -R '^pusch_processor_unittest$' --output-on-failure
+~~~
 
-| 测试 | 比较对象 | 典型问题 |
-| --- | --- | --- |
-| 冲激/正弦测试 | 已知 CIR、频响、延迟和相位 | 样点单位、FFT 符号、尾部状态 |
-| 统计检验 | 平均功率、PDP、DS、幅度分布 | dB转换、归一化、参数错误 |
-| 时间检验 | 自相关、多普勒谱、连续相位 | 每块重置随机数、虚假快衰落 |
-| 空间检验 | 阵列相关、角度、轨迹一致性 | 天线方向或坐标变换错 |
-| 实测验证 | 独立位置/时段的指标及不确定度 | 过拟合、校准泄漏、环境遗漏 |
-| PHY 联合验证 | 同一接收机的 EVM/BLER | 指标相近但接收行为不同 |
+[CMakeLists.txt](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/CMakeLists.txt) 明确区分普通单元测试和需要 PHY 向量的测试；[CMakeLists.txt](https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/CMakeLists.txt) 中的 `ldpc_enc_dec_test`、`ldpc_rm_test`、`ldpc_segmenter_test` 也受 `USE_PHY_TESTVECTORS` 控制。向量数据的下载/解包由上游测试配置决定；缺数据不是算法通过。
 
-**开发任务。** 先完成自定义 FIR 的整块/分块一致性、能量与时延检查；再实现一个指定版本 TDL，并与独立参考检验统计。最后使用独立实测集校准/验证，明确哪些结论只适用于仿真，哪些能支持真实场景预测。
+需要哪个模块就构建对应目标，再用 `ctest -N` 核对注册名与数据。只构建一个目标后，不要立刻运行全部 CTest 并把“找不到可执行文件”当成算法失败。若依赖不齐，可以先完成源码阅读与本地练习，把上游执行状态记为未运行。
+
+### 29.5 一次源码阅读应留下什么
+
+为每个模块写一张卡片：规范版本与条款、输入/输出单位、预处理条件、关键函数、失败行为、状态所有者、已跑测试、未覆盖条件。英文描述可以简短但要精确，例如：
+
+~~~text
+Input LLRs use the punctured-codeword coordinate system.
+Positive values favor bit zero. Filler positions are known zeros.
+The adapter must not prepend the punctured nodes twice.
+~~~
+
+**本章交付：** 一条有数据形状标注的调用链、两张算法卡片、一份成功或失败都可复现的上游构建记录，以及自己的同步/异步边界测试。
+
+---
 
 <a id="ch30"></a>
-## 30 AI 训练推理与 AI Coding 工程实践
+## 30 性能实验：先保正确，再优化真正的热点
 
-### 30.1 先提出可比较的问题
+### 30.1 先测处理链，不按指令集名称选工作
 
-适合练手的问题是“用导频和历史信息改善信道估计”，因为有 LS/插值/LMMSE 基线、可生成标签，并可通过同一接收机验证最终效果。另一方向是学习信道模型的残差，用物理模型解释已知部分，再训练可观察误差；需要特别检查泛化。
+把时间分成资源提取、估计/均衡、软解调、去交织/软恢复、LDPC、调度/队列等阶段。记录调用配置、数据大小、迭代数与 CPU 环境。不同 SNR 会改变早停迭代次数，因此不能只用全零或无噪声向量比较译码性能。
 
-先写任务定义：模型在时刻 t 能看到什么、需要预测什么、计算预算多少。不能将未来导频、真实 H、真实发送数据或仿真内部状态放进现实中无法获取的输入。即使训练标签是真实 H，在线输入也不能包含它。
+用 Amdahl 定律估计收益：若某阶段仅占总时间 10%，即使无限快，总加速也不超过约 1.11 倍。先确认热点，再选择数据布局或 SIMD 技术。
 
-### 30.2 数据形状、标签和切分
+### 30.2 从 L07 的两个版本开始优化
 
-一种单层多接收通道的候选输入是导频 LS 的实部、虚部、噪声估计和导频位置 mask；输出是数据格上的 H 实/虚部。张量必须声明轴：
+先比较 O(d²) 校验节点与“两个最小值＋符号 XOR”的 O(d) 版本，在重复最小值、零、极小/极大值下保持一致。接着固定浮点版本为参考，建立定点量化 `q=clip(round(scale×L),−Lmax,Lmax)`，独立定义加减的饱和、固定值和中间位宽。
 
-~~~text
-feature: [batch, rx, feature_channels, symbol, subcarrier]
-target:  [batch, rx, 2, symbol, subcarrier]   # 2表示实部/虚部
-mask:    明确区分观测点与填充点
-~~~
+比较的不只是数值误差，还包括相同噪声样本上的硬判决、迭代次数与 BLER。定点版不必逐点等于浮点版，但差异与损失必须可量化。
 
-复数拆成两通道是一种实现选择，不能无说明地改变轴或归一化。多层还要加入发射端口/层维度，并先完成 DM-RS 解扩；不能直接沿用单层标签。
+### 30.3 AVX512、SVE 与 AMX 应承担什么
 
-仿真标签可用信道真值，但应检验时域卷积到频域 H 的坐标一致性。实测标签受探测分辨率和噪声影响，应报告其误差。
+AVX512 适合在支持的 x86 CPU 上处理宽向量操作；SVE 实现要按运行时向量长度和谓词处理尾部；AMX 更适合匹配其数据类型和运算形态的矩阵工作，不能把它当成任意 LDPC 算子的直接替代品。实际编译和运行必须查目标 CPU 与编译器支持。
 
-**先按位置/轨迹/日期/设备划分训练、验证和测试，再提取重叠窗口。** 相邻样本高度相关，随机逐样本切分会泄漏。归一化统计只由训练集估计；量化校准集也不能使用最终测试集。
+本地 [bench.cpp](cpp/src/bench.cpp) 提供复乘 SoA 的 portable、AVX512 和 SVE 示例。练习从尾部长度开始：0、1、向量宽度−1、向量宽度、向量宽度+1；再验证对齐、别名和饱和约定。只能在相应硬件运行后报告该 ISA 的性能；本机 portable 结果不能证明 AVX512/SVE 的加速。
 
-### 30.3 训练与评估不只看 loss
+阅读真实项目的 LDPC generic 实现后，再沿同目录寻找目标架构实现和工厂选择条件，对比处理 Zc、移位、最小值与尾部的方法。先用 `rg --files` 看固定版本实际有哪些后端，不假设每种 ISA 都存在。
 
-从小模型开始：MLP 便于查看依赖，CNN 利用局部时频结构，时序模型利用历史。模型复杂度应与数据量、变化尺度和推理预算匹配。下面是逻辑伪代码，未作为可运行训练项目交付：
+### 30.4 Linux 的验收单位是任务和时限
 
-~~~text
-split_by_scenario_location_time()
-fit_normalizer_on_train_only()
-for batch in train:
-    H_pred = model(observable_features)
-    loss = masked_MSE(H_pred, H_label)
-    backprop_and_update()
-evaluate_on_unseen_scenarios()
-compare_same_receiver(LS, interpolation, LMMSE, model)
-~~~
+先测单核，再测多 UE/多 slot 持续负载。分别记录吞吐、逐次处理延迟分位数、排队时间、deadline miss、CPU 利用率和峰值内存。批次平均耗时的 p99 不是每次任务延迟的 p99。
 
-可报告归一化误差 Σ|H_hat-H|²/Σ|H|²，并明确统计聚合方式；还要检查相位/幅度、EVM、BLER、低 SNR 和未见速度/时延范围。低 MSE 不保证更低 BLER，过度平滑会丢失深衰落或快速变化。
+在 Linux 上可以用 `perf stat` 观察 cycles、instructions、cache miss 等，使用采样定位热点；绑核、NUMA 内存、线程数、调度策略都应作为实验变量记录。不要为了某个数字随意修改系统内核参数；每个调优都必须回到实际时限与工作负载验证。
 
-固定数据版本、模型参数、训练配置和运行环境。框架的随机性、并行算法和设备差异需要记录；相关设置查 [PyTorch reproducibility](https://docs.pytorch.org/docs/stable/notes/randomness.html)，不能只设一个 seed 就承诺跨平台完全一致。
-
-### 30.4 训练框架与部署框架各负责什么
-
-训练框架组织张量、自动求导、优化器、混合精度和分布式训练；部署框架执行已冻结的计算图，处理算子支持、内存、线程和硬件后端。GPU 大 batch 的训练吞吐与 CPU 小 batch 的在线时延是两类指标。
-
-可以将模型导出为 ONNX，再用 C++ 推理接口接入，但要固定导出和 runtime 版本，检查输入布局、动态形状、算子与精度。使用 [ONNX Runtime API](https://onnxruntime.ai/docs/api/python/api_summary.html)和 [量化文档](https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html)确认当前接口；量化需重做精度与物理层指标验证。
-
-建议接口含 feature schema、normalizer、model version、推理预算与失败状态。避免每时隙重复创建 session、分配 tensor 或触发隐式数据搬运。测量包括特征提取、归一化、排队、推理、回写的总时间，随后在目标 CPU 的持续负载下检查尾延迟。
-
-在线模型异常、超时或输入分布偏离时，回退到已验证的传统算法；保留模型输出的检查与遥测。AI 推理不是规范规定的必选接收路径。
-
-### 30.5 AI Coding 用在怎样的任务上
-
-可以用 AI 阅读条款、生成小模块初稿、设计测试向量、解释性能 trace 或整理接口，但人负责需求、规范定位和结果验收。对通信代码，尤其要防止“输出合理”掩盖表格、位序和单位错误。
-
-一个可直接采用的任务说明：
+### 30.5 性能报告模板
 
 ~~~text
-目标：实现 Ncb=N 条件下 BG2 LDPC rate matching。
-依据：TS 38.212 V18.5.0 §5.4.2。
-输入：N=50Zc，值为0/1/NULL，RV0..3，E整除Qm。
-输出：E位，以及对应的母码位置。
-不包含：LBRM、CBG、UCI复用。
-验收：手算小例、RV起点、NULL跳过、重复位、交织与错误输入。
-禁止用同一个函数生成全部“期望值”。
+功能与规范子集 / 输入配置与数据哈希 / 参考实现版本
+CPU与ISA / OS / 编译器及选项 / 线程和内存放置
+单次时延原始样本 / p50 p95 p99 / 吞吐 / 超时数
+正确性误差 / 相同噪声样本的BLER / 迭代分布
+瓶颈解释 / 改动前后差异 / 回退路径
 ~~~
 
-“一个模块、一套明确契约、一组独立检查”更容易评审。大项目中先让 AI 枚举调用点和配置影响，再分块修改；保留可审阅差异、构建结果与失败案例。规范表和第三方代码的来源、版本与许可证也需要记录，不能让生成代码隐藏依赖来源。
+**本章交付：** 选择一个已正确模块完成优化，保留标量参考和可复现实验。不要同时替换算法、量化和线程模型，否则无法解释收益来自哪里。
 
-### 30.6 大规模变更怎样保持可控
-
-先定义稳定接口和阶段向量，逐步迁移一个 backend 或一个配置维度。每次变更回答：哪项需求变化、哪类输入受影响、已有测试覆盖什么、未覆盖什么。删除旧实现前，保留一段双跑比较期或独立参考。
-
-AI 生成的 SIMD、并发和状态代码尤其需要人工检查：越界、别名、生命周期、原子顺序、NUMA、饱和及 CPU 特性分派。只有性能报告而没有数值回归，或只有回环而没有独立参考，都不足以批准生产替换。
-
-**开发任务。** 用上述模板完成一个快速 RIV 解码器，由枚举版独立验收；保留提示、修改、失败测试和最终说明。这可以成为岗位“AI Coding”经验的可审阅样例。
+---
 
 <a id="ch31"></a>
-## 31 项目验收、代码阅读与岗位准备
+## 31 完成岗位项目：规范追踪、信道验证与后续路线
 
-### 31.1 将学习变成三个项目
+### 31.1 主项目的最终验收
 
-| 项目 | 最小范围 | 验收成果 | 拓展 |
-| --- | --- | --- | --- |
-| P1 受限 PHY 算法库 | 资源/CRC/Gold/QAM/DM-RS/OFDM，明确限制 | 本教程工程、阶段快照、独立小向量、故障报告 | 更多调制与合法 DM-RS 配置 |
-| P2 完整单层编码链 | 真实 LDPC、软译码、TB CRC、母码回填、AWGN | TB回环、独立编码向量、BLER区间、HARQ状态测试 | 多径、同步、MIMO、UCI |
-| P3A 实时软件方向 | Linux线程/缓冲、一个SIMD瓶颈 | 数值回归、目标硬件性能、超时与尾延迟 | 多UE负载、NUMA、前传接口 |
-| P3B 信道/孪生方向 | 指定TDL/CDL实现与测量验证 | 模型统计、连续状态、独立实测误差 | 几何融合、残差AI模型 |
+第一份完整项目建议命名为“单层 PUSCH 物理层实验台”。提交源码、构建命令、能力矩阵、固定向量、原始实验数据、逐阶段 trace、失败案例和设计说明。用下表评审，而不是只演示一张正常星座图：
 
-P1 已提供学习代码；P2/P3 是具体后续任务，并未因文档讲解而视为已经完成。结合岗位的“一项或多项”，P3A/P3B 可以择一主攻。每个项目最好有一份范围声明，使评审者知道你做到了哪里。
+| 维度 | 应提交的证据 |
+| --- | --- |
+| 38.211 | 加扰、标签、DM-RS 序列/位置、层/资源映射、OFDM 时序的适用条件 |
+| 38.212 | CRC、分段、BG/Zc、真实 LDPC、速率匹配、恢复/译码的独立向量 |
+| 38.214 | 授权解析与 MCS/TBS 的边界测试 |
+| 38.213 | 功率/控制所需上下文，明确简化条件 |
+| 38.215 | 规范测量定义与内部 EVM/SINR 等诊断量的区别 |
+| 工程 | 错误处理、缓冲区生命周期、并发测试、版本和性能记录 |
 
-### 31.2 阅读成熟实现时看什么
+教学基线只支持哪些配置，就在封面写清哪些配置。完整 CP、UCI、多层等未通过验收时，不要宣称支持所有 NR PUSCH。
 
-可以从 [srsRAN Project](https://github.com/srsran/srsRAN_Project) 等公开 PHY 实现入手，固定某个 commit 和许可再阅读；不要假定当前主分支的接口永远相同。建议先搜索模块名和调用链：
+### 31.2 补齐 38.213 和 38.215，保持主线比例
 
-~~~sh
-rg --files | rg 'pusch|ldpc|dmrs|equaliz|ofdm'
-rg 'rate_match|rate_dematch|harq|softbuffer' include lib tests
-~~~
+功率练习查 [TS 38.213 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138213/18.05.00_60/ts_138213v180500p.pdf) §7.1：实现受最大输出功率限制的计算，分别改变分配带宽、μ、路损和 TPC 状态，检查饱和前后行为。配置身份、累积状态和生效时刻比孤立的 `min()` 公式更重要。
 
-这些只是候选目录/关键词，要按实际仓库调整。沿一个测试追踪配置→工厂→backend→数据 view→执行；比较本教程简化接口与真实项目如何表达异步任务、内存池、多天线、限时和能力选择。理解架构后，再选择具体 backend 改进。
+测量练习查 [TS 38.215 V18.5.0](https://www.etsi.org/deliver/etsi_ts/138200_138299/138215/18.05.00_60/ts_138215v180500p.pdf) §5：选一个具体测量量，写清测量对象、资源集合、参考点和线性平均方式，再转换到 dB。用 `[-80,-90] dBm` 检查线性功率平均约 `-82.97 dBm`，不是 `-85 dBm`。PUSCH 接收机估计的内部 SINR/EVM 不能直接改名为 SS-RSRP 或 UL SRS-RSRP。
 
-不能直接把开源库的内部类当作稳定公共 API，或省略许可证/依赖条件。独立工具的结果也需要确认配置、位序和归一化，而不是仅比最终图形。
+已有入口 `cpp/build/pusch_demo measure` 只示范单位和简化功率关系；完整状态与测量条件仍需按所选条款实现。
 
-### 31.3 什么时候补 LTE 与其他制式
+### 31.3 数字孪生作为完成主线后的第二项目
 
-完成 NR 主线后再比较 LTE，容易看清可复用的工程能力：FFT、信道估计、均衡、CRC、缓冲与性能分析。具体帧结构、调度、码本、编码和资源规则应回到各自规范。
+岗位中的信道孪生需要模型在定义好的环境中可被测量验证。先做静态多径 FIR，检查冲激响应、时延单位、整块/分块一致、尾部与连续相位；再以 [TR 38.901 V18.0.0](https://www.etsi.org/deliver/etsi_tr/138900_138999/138901/18.00.00_60/tr_138901v180000p.pdf) 为依据扩展指定 TDL/CDL 场景。这是补充资料，不把信道模型归入 38.211–38.215。
 
-例如 LTE UL-SCH 主要使用 turbo 编码，可查 [36.212 V18.0.0 §5.1.3、§5.2](https://www.etsi.org/deliver/etsi_TS/136200_136299/136212/18.00.00_60/ts_136212v180000p.pdf)；NR UL-SCH 使用 LDPC。LTE 上行和 NR 变换预编码的关系可以作为波形比较，但不能复制 NR 的 TBS/BG/DM-RS 代码就称为 LTE PUSCH。NB-IoT、GSM 也需要独立的协议与算法学习路线。本教程聚焦 NR PUSCH，不宣称一次覆盖所有岗位制式。
+接口应包含采样率、时间起点、状态/随机种子、发射/接收通道数、路径/场景参数与归一化。需要分数时延和多普勒时，要验证滤波器延迟、功率和时间相关性，不能每个 slot 重新抽一次独立 h 就称“连续移动”。
 
-### 31.4 能力检查：尝试现场说明这些问题
+然后做一条完整验证链：模型预测 CIR/PDP/频响→独立位置/时段的测量对照→统计误差→固定 PUSCH 接收机下的 EVM/BLER。校准数据与最终验证数据分开；仅复现平均 SNR 无法证明模型能预测频率选择性和接收性能。
 
-1. 为什么 N_info、TBS、K、N、G 各不同？若资源增加，哪些量必然变化，哪些可能保持？
-2. BG2 选择 Zc 时的 Kb 和编码 K/Zc 为什么可能不同？
-3. 不同 RV 怎么回到同一软缓存？NDI 更新时做什么？
-4. 交织前后的母码索引怎么保存或重建？
-5. 数据格子以 BWP 为起点，DM-RS 为什么还需要 CRB 参考？
-6. FFT 缩放变化怎样影响信道增益、EVM 和噪声方差？
-7. MMSE 输出符号为何还要校准有效增益和 LLR 方差？
-8. 固定 seed 和 TX/RX 回环分别不能保证什么？
-9. SIMD 内核加速4倍，端到端为什么可能只快一点？
-10. 零错误怎样报告置信上界？静态 FIR 与 38.901 TDL 相差什么？
-11. 怎样证明一个信道孪生对未参与拟合的位置也有效？
-12. AI 信道估计器如何避免未来信息和数据泄漏，并满足时限？
+### 31.4 AI 与 AI Coding 以可验证接口接入
 
-答案分布在对应章节，不要求初学者第一次就全部回答；能够连接“规则→实现→验证→边界”，才表明进入了开发层次。
+AI 信道估计可以作为 LS/插值之后的替换模块，但先定义在线可见输入：导频、资源掩码、历史观测、噪声估计等。仿真真值 H 可作训练标签，不能泄漏到真实在线输入。按场景、轨迹、位置或时段分割数据，再切窗口；最终比较同一接收链的 BLER、泛化与总推理延迟。
 
-### 31.5 英文设计说明的具体模板
+使用 AI 辅助编码时，每次给出规范版本、条款、输入输出契约、支持范围和独立测试。可让 AI 解释源码、生成初稿或设计失败案例，但验收不能由同一段代码同时生成实现与全部期望值。第 25 章的移位表、第 26 章的坐标和第 28 章的占位关系都应人工核对。
 
-不用一开始写长论文。为一个模块准备一页：
+### 31.5 十二个检验理解深度的问题
 
-~~~text
-Title: Single-layer PUSCH rate-matching adapter
-Scope: Supported configurations and excluded features
-Reference: Specification version and clauses
-Input/Output: Shapes, bit order, units and ownership
-Algorithm: Main steps and implementation choices
-Validation: Independent vectors and failure cases
-Performance: Hardware, compiler, workload and latency
-Limitations: Remaining integration and validation work
-~~~
+1. 为什么 TBS 用 RE 预算与真实资源格的数据 RE 数可能不同？
+2. BG2 的 K_b=6 时，编码器输入为什么仍不是 6Zc？
+3. filler、打孔位与未选中的母码位，在接收端分别怎样表示？
+4. srsRAN decoder 和自己的全图 decoder 为什么可能要求不同长度的 LLR？
+5. 为什么正常星座形状不能证明 QAM 标签正确？
+6. DM-RS 起始序列为什么与 CRB/BWP 坐标有关？
+7. 除以 h 后，LLR 使用的噪声方差为什么要改变？
+8. RV 改变了什么，什么条件下可以合并两个软缓冲？
+9. 为什么无噪声自身回环通过仍需独立向量？
+10. UCI 占位为什么使“解扰后丢掉序列”不够用？
+11. processor 函数返回后，哪些缓冲区可能仍被异步任务使用？
+12. 如何证明优化没有以错误率或尾延迟为代价？
 
-问题报告可以写：
+回答时尽量引用自己的代码、测试输入和 trace，而不是只背定义。
 
-~~~text
-Observed: TB CRC fails after RV1 retransmission.
-Expected: LLRs should be combined at mother-code positions.
-Reproduction: Attach configuration, seed and stage snapshots.
-First mismatch: Rate-recovery positions differ at index ...
-Root cause: ...
-Fix and regression: ...
-~~~
+### 31.6 本版交付和建议的下一步
 
-清楚说明配置、现象和第一处差异，比堆砌英文术语更有价值。交流时区分“implemented”“validated against a reference”和“measured on target hardware”，避免把设计方案表达成已验证结果。
+本版重写了第 19–31 章，提供 10 个 TODO 实验、参考解与测试，保留原有 `cpp` 教学工程，并核对固定版本 srsRAN 的 36 个文件。本次验证结果见 [开发路线验证记录](learning_path/验证记录.md)。
 
-### 31.6 交付清单与最终自检
-
-完成一个开发任务时，交付：规范版本和条款、适用配置、源码与构建说明、阶段向量/独立对照、失败输入、结果统计、性能环境，以及尚未覆盖的条件。能从干净目录复现，不依赖某位同事的临时文件。
-
-本版已经交付 Markdown、离线可读 HTML、C++17 学习工程、回归测试和本机实验 CSV/记录。HTML 的理论与代码示例可单独阅读；下载并编译实验还需要随附 cpp 目录或源码压缩包。主规范索引见第18章，开发阅读路线从第19章进入。
+建议现在从第 20 章 L01 开始，每通过一个实验就写下“规范输入→代码接口→中间量→错误案例→通过证据”。完成 M1 后再进入 CRC/LDPC 的 M2；完成真实编码链路后，再按岗位方向选择性能或信道验证项目。

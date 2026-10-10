@@ -1,0 +1,224 @@
+{
+  "repository": "srsran/srsRAN_Project",
+  "tag": "release_25_10",
+  "commit": "d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc",
+  "checked": "2026-10-10",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "e11bf3e1309412404c8ae20efb95e27de3dae0f99876a77345b27233b8a21830",
+      "lines": 173,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/README.md"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6",
+      "lines": 661,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/LICENSE"
+    },
+    {
+      "path": "include/srsran/phy/upper/channel_processors/pusch/pusch_processor.h",
+      "sha256": "eb56cd08e489a5c33909ac94ec82879d20569d397b7285b44e20af215767f58e",
+      "lines": 200,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_processors/pusch/pusch_processor.h"
+    },
+    {
+      "path": "lib/phy/upper/channel_processors/pusch/pusch_processor_impl.cpp",
+      "sha256": "9944fc3c2058743ac21990aaf559914d2a521ee69f17fe08047c773be4c93cba",
+      "lines": 386,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_processor_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_processors/pusch/pusch_demodulator_impl.cpp",
+      "sha256": "e507150dc197aad727378e0832d06320943ac9101e2e6675073f3f30f53336aa",
+      "lines": 445,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_demodulator_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_processors/pusch/pusch_decoder_impl.cpp",
+      "sha256": "46e445a50e3a560d52ca0c0a10e96cb733ab1ae536cc69fa87909bc3e64a39e0",
+      "lines": 505,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/pusch_decoder_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_processors/pusch/ulsch_demultiplex_impl.cpp",
+      "sha256": "ac13267b02bfd117d0ea9cd14adb79606c5d88a3c47dc40835db8907447d9894",
+      "lines": 590,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_processors/pusch/ulsch_demultiplex_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_tx_impl.cpp",
+      "sha256": "6750a56f5f80dfb42b625d231190a61f5eb2c0e1f4b00e9174676ddc84387948",
+      "lines": 254,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_tx_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_rx_impl.cpp",
+      "sha256": "83b82e0aacda112f93bd6af6ed7f38acde680621084b31d2976027c15f1a8787",
+      "lines": 106,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_segmenter_rx_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_encoder_generic.cpp",
+      "sha256": "87104c03516a756a1641b73b9b0cbdedfa127b59ad5c5ef372c0ee7071029c6c",
+      "lines": 328,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_encoder_generic.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_encoder_impl.cpp",
+      "sha256": "010ddbe076cb1931d2d6f4fe51a684eaa7d3cd9935bbb783ecee92381c7ea84a",
+      "lines": 78,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_encoder_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_decoder_impl.cpp",
+      "sha256": "ac564174290827f8dd276e250a462980238029a675df7ec68013f741b15b0abb",
+      "lines": 350,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_decoder_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_decoder_generic.cpp",
+      "sha256": "81fd8ca6501901b2421e75d4f5cf01ae297026f99889af9901e3d7cadd2e2c8d",
+      "lines": 122,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_decoder_generic.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_graph_impl.cpp",
+      "sha256": "e869e1172ece96f92c53f0cde89b844766b22d165e0edf0723be04ea7625fa68",
+      "lines": 57,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_graph_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_luts_impl.cpp",
+      "sha256": "e8b0ad6560ca32d9dd50c05e59f04fa1553ab6c6c465a8b064fac5f4dda55919",
+      "lines": 4568,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_luts_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_rate_matcher_impl.cpp",
+      "sha256": "a58b61ea17d659c6ff0ffaaa599b2a0307da37a255f268248ce3d44d265f0390",
+      "lines": 292,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_rate_matcher_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_coding/ldpc/ldpc_rate_dematcher_impl.cpp",
+      "sha256": "250de04045a5899306d1ec1be9cb57afa546bef9ac8e0c83275beee59baf9c72",
+      "lines": 257,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_coding/ldpc/ldpc_rate_dematcher_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/sequence_generators/pseudo_random_generator_impl.cpp",
+      "sha256": "b835780d323208575eb2ca176b8f46a1196edb7b164f1ada5530dfc3dfe9ce8b",
+      "lines": 528,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/sequence_generators/pseudo_random_generator_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_modulation/modulation_mapper_lut_impl.cpp",
+      "sha256": "5fd9367f99c0d05b5687a0686be73f174c25ed6af87679cf29895bffce3efd7f",
+      "lines": 305,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_modulation/modulation_mapper_lut_impl.cpp"
+    },
+    {
+      "path": "lib/phy/upper/channel_modulation/demodulation_mapper_qpsk.cpp",
+      "sha256": "a8b687fc1b18aac6ebf494219bcf6c6d461577eb709407b2e17f0473d82532a6",
+      "lines": 171,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/channel_modulation/demodulation_mapper_qpsk.cpp"
+    },
+    {
+      "path": "lib/phy/upper/signal_processors/pusch/dmrs_pusch_estimator_impl.cpp",
+      "sha256": "d167d8e3dc55ff32e21cf8e4f23ef03d4cece0b40e38d30e9ea6574cff1acee2",
+      "lines": 184,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/upper/signal_processors/pusch/dmrs_pusch_estimator_impl.cpp"
+    },
+    {
+      "path": "lib/phy/lower/modulation/ofdm_modulator_impl.cpp",
+      "sha256": "7c6343d4c10aca2398dff5f42c1d13943111cba88dcfcbb66381a784a5331f5f",
+      "lines": 148,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/lower/modulation/ofdm_modulator_impl.cpp"
+    },
+    {
+      "path": "lib/phy/lower/modulation/ofdm_demodulator_impl.cpp",
+      "sha256": "1f704e10c7ef8a864c1e4a6734708ab5a3bde6316cbebb54c3b835ec9adeb6e8",
+      "lines": 180,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/phy/lower/modulation/ofdm_demodulator_impl.cpp"
+    },
+    {
+      "path": "lib/ran/sch/tbs_calculator.cpp",
+      "sha256": "d9cad0330e84b1c71c5faa806f3d40bb6664e730261633fe0acba7690dd2f139",
+      "lines": 144,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/ran/sch/tbs_calculator.cpp"
+    },
+    {
+      "path": "lib/ran/pusch/ulsch_info.cpp",
+      "sha256": "04e329e19069ff6d9e15bfd86d8962d45b0fb7e05c7ceb4be10cc55d7b973f8e",
+      "lines": 360,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/lib/ran/pusch/ulsch_info.cpp"
+    },
+    {
+      "path": "include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder.h",
+      "sha256": "65bd0c469e3a3a6c1fe2ed51534adacdd613176c6b3ea16849dd11fb3abccbfb",
+      "lines": 62,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder.h"
+    },
+    {
+      "path": "include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder_buffer.h",
+      "sha256": "7f91c767bd2993fec3ead61392e843630eda6cece6511de60665964d8c02c30d",
+      "lines": 52,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_encoder_buffer.h"
+    },
+    {
+      "path": "include/srsran/phy/upper/channel_coding/ldpc/ldpc_decoder.h",
+      "sha256": "0da7779ae47de14b335bbd33ac1217e1a6724711d28d14eb7bfe3e655c603244",
+      "lines": 75,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/ldpc/ldpc_decoder.h"
+    },
+    {
+      "path": "include/srsran/phy/upper/channel_coding/channel_coding_factories.h",
+      "sha256": "d76cf30fa11ea0505ca65378d9382f26fe7ae6818fe97ac8bbcd6056fa91a7dd",
+      "lines": 138,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/include/srsran/phy/upper/channel_coding/channel_coding_factories.h"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_coding/ldpc/CMakeLists.txt",
+      "sha256": "cec2f0d4e1e8de9d458a01f4663f74b2d8206cad1e03e0f17de9accf99706221",
+      "lines": 38,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/CMakeLists.txt"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_coding/ldpc/ldpc_enc_dec_test.cpp",
+      "sha256": "9d9c3eee98ccefa20e29574db4fa5015127266697b5c97e83fa93e259cf1cf69",
+      "lines": 383,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/ldpc_enc_dec_test.cpp"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_coding/ldpc/ldpc_rm_test.cpp",
+      "sha256": "4343e6aa0a11cfa804262596babfb0cef8a8f596a58ea790ce478a4ef36e2c01",
+      "lines": 244,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_coding/ldpc/ldpc_rm_test.cpp"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_processors/pusch/CMakeLists.txt",
+      "sha256": "e2249faaa997cc0d10daec987663efd87722fda7df862911a081e477fb320749",
+      "lines": 88,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/CMakeLists.txt"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_unittest.cpp",
+      "sha256": "49ce407b1140e740ebf2f4a15be928fc11b0191700a064ede68c011bb617d811",
+      "lines": 584,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_unittest.cpp"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_vectortest.cpp",
+      "sha256": "87552c611cfacc9e391aa8467d4dc6f3c12c2e39d83647f59892a83a527752cd",
+      "lines": 616,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/pusch_processor_vectortest.cpp"
+    },
+    {
+      "path": "tests/unittests/phy/upper/channel_processors/pusch/ulsch_demultiplex_test.cpp",
+      "sha256": "72f868d83dc7a35c27ac7043db71584cc337864a4c675e00ecc397fab893f4e5",
+      "lines": 154,
+      "url": "https://github.com/srsran/srsRAN_Project/blob/d2f4b70dda8e2c557d5b05a0ac5f92dbddda19bc/tests/unittests/phy/upper/channel_processors/pusch/ulsch_demultiplex_test.cpp"
+    }
+  ]
+}
